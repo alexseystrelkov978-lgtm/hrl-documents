@@ -15,8 +15,23 @@
     return el ? el.value.trim() : '';
   }
 
+  /** Суммы без ограничения — text-поля, пробелы и запятые допускаются */
   function num(id) {
-    return Number(document.getElementById(id).value);
+    const el = document.getElementById(id);
+    if (!el) return NaN;
+    let raw = String(el.value).trim().replace(/\s/g, '');
+    if (!raw) return NaN;
+    if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(raw) || /^\d{1,3}(,\d{3})+(\.\d+)?$/.test(raw)) {
+      raw = raw.replace(/\./g, '').replace(',', '.');
+    } else {
+      raw = raw.replace(',', '.');
+    }
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  function hasAmount(n) {
+    return Number.isFinite(n) && n > 0;
   }
 
   function collectData() {
@@ -86,7 +101,11 @@
     if (!data.fio) return 'Укажите ФИО.';
     if (docType === 'report') {
       if (!data.docNo || !data.reportDate) return 'Заполните номер документа и дату.';
-      if (!data.blockedKzt || !data.activeUsdTotal) return 'Укажите заблокированные и активные средства.';
+      const blocked = num('blockedKzt');
+      const active = num('activeUsdTotal');
+      if (!hasAmount(blocked) || !hasAmount(active)) {
+        return 'Укажите заблокированные и активные средства (любая сумма, без ограничения).';
+      }
       return '';
     }
     if (docType === 'claim') {
@@ -96,7 +115,7 @@
       return '';
     }
     if (!data.docNo || !data.reportDate) return 'Заполните номер договора и дату.';
-    if (!data.blockedKzt) return 'Укажите сумму ущерба.';
+    if (!hasAmount(num('blockedKzt'))) return 'Укажите сумму ущерба.';
     return '';
   }
 

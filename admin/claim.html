@@ -28,7 +28,7 @@
       <div class="span-2"><label for="plaintiffAddress">Адрес истца *</label><input id="plaintiffAddress" type="text"></div>
       <div><label for="plaintiffPhone">Телефон истца</label><input id="plaintiffPhone" type="text"></div>
       <div><label for="defendantName">Ответчик *</label><input id="defendantName" type="text"></div>
-      <div><label for="claimAmount">Сумма иска (₸, число)</label><input id="claimAmount" type="number" step="0.01"></div>
+      <div><label for="claimAmount">Сумма иска (₸, число)</label><input id="claimAmount" type="text" inputmode="decimal" class="money-input" placeholder="например 250 000 000"></div>
       <div><label for="claimAmountText">Сумма иска (текст) *</label><input id="claimAmountText" type="text" placeholder="1 500 000 (один миллион...)"></div>
     </div>
     <button class="btn alt" id="previewBtn" type="button">Предпросмотр</button>
@@ -59,9 +59,9 @@
     </table>
   </div>
 </div>
-<script src="../assets/secure-store.js?v=free-access-2"></script>
-<script src="../assets/templates.js?v=free-access-2"></script>
-<script src="../assets/app.js?v=free-access-2"></script>
-<script src="../assets/admin-page.js?v=free-access-2"></script>
+<script src="../assets/secure-store.js?v=amounts-fix-1"></script>
+<script src="../assets/templates.js?v=amounts-fix-1"></script>
+<script src="../assets/app.js?v=amounts-fix-1"></script>
+<script src="../assets/admin-page.js?v=amounts-fix-1"></script>
 </body>
 </html>

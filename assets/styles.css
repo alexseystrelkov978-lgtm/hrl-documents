@@ -54,6 +54,9 @@ input:focus, textarea:focus {
   border-color: #1a3a5c;
   box-shadow: 0 0 0 3px rgba(26,58,92,0.15);
 }
+input.money-input {
+  font-variant-numeric: tabular-nums;
+}
 .btn {
   display: inline-block;
   padding: 11px 18px;
