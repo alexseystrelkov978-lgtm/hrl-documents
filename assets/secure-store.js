@@ -1,6 +1,27 @@
 (function (global) {
   const KEY_SECRET = 'hrl_sec_blob';
 
+  try {
+    localStorage.removeItem('hrl_pin_hash');
+    localStorage.removeItem('hrl_admin_unlock');
+  } catch (err) { /* ignore */ }
+
+  function requireAdminUnlock() {
+    return true;
+  }
+
+  function checkPin() {
+    return true;
+  }
+
+  function isUnlocked() {
+    return true;
+  }
+
+  function clearUnlock() {}
+  function setUnlockSession() {}
+  function setPin() {}
+
   function xorEncode(text) {
     const key = 'hrl-local-v1';
     const bytes = new TextEncoder().encode(String(text));
@@ -53,6 +74,12 @@
     setGithubToken,
     getGithubToken,
     hasGithubToken,
-    maskName
+    maskName,
+    requireAdminUnlock,
+    checkPin,
+    isUnlocked,
+    clearUnlock,
+    setUnlockSession,
+    setPin
   };
 })(window);

@@ -2,17 +2,27 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="0;url=../index.html">
-<title>Перенаправление…</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Без пароля — перенаправление</title>
 <script>
-  const p = new URLSearchParams(location.search);
-  const n = p.get('next');
+(function () {
+  try {
+    localStorage.removeItem('hrl_pin_hash');
+    localStorage.removeItem('hrl_admin_unlock');
+  } catch (e) {}
+  var p = new URLSearchParams(location.search);
+  var n = p.get('next');
   if (n) {
-    location.replace(n.startsWith('admin/') ? '../' + n : (n.startsWith('../') ? n : '../' + n));
+    location.replace(n.indexOf('admin/') === 0 ? '../' + n : (n.indexOf('../') === 0 ? n : '../' + n));
   } else {
     location.replace('../index.html');
   }
+})();
 </script>
 </head>
-<body><p><a href="../index.html">На главную</a></p></body>
+<body>
+<p>Пароль не используется. <a href="../index.html">Перейти на главную</a></p>
+</body>
 </html>
