@@ -126,11 +126,6 @@
     applySigned(signedAt, false);
     if (navigator.vibrate) navigator.vibrate([40, 80, 40]);
     launchConfetti();
-    if (payload.gh) {
-      try {
-        await HRL.pushSignedToGithub(payload.gh, record);
-      } catch (err) { /* silent */ }
-    }
   }
 
   function launchConfetti() {

@@ -1,4 +1,6 @@
 (function () {
+  if (!window.HRLSecure?.requireAdminUnlock?.(location.pathname + location.search)) return;
+
   const docType = document.body.dataset.docType;
   const meta = window.HRL_META[docType];
   const template = window.HRL_TEMPLATES[docType];
@@ -7,18 +9,8 @@
   const formStatus = document.getElementById('formStatus');
   const listStatus = document.getElementById('listStatus');
   const previewEl = document.getElementById('preview');
-  const linkBox = document.getElementById('linkBox');
-  const linkUrl = document.getElementById('linkUrl');
   const shortBox = document.getElementById('shortBox');
   const shortUrl = document.getElementById('shortUrl');
-
-  const gh = {
-    token: document.getElementById('ghToken'),
-    owner: document.getElementById('ghOwner'),
-    repo: document.getElementById('ghRepo'),
-    branch: document.getElementById('ghBranch'),
-    path: document.getElementById('ghPath')
-  };
 
   function val(id) {
     const el = document.getElementById(id);
@@ -77,7 +69,7 @@
         defendantName: val('defendantName'),
         birthYear: val('birthYear'),
         claimAmountText: val('claimAmountText') || HRL.formatMoney(claimAmount, 'KZT'),
-        label: `Иск — ${val('fio')}`
+        label: `Иск — ${HRLSecure.maskName(val('fio'))}`
       };
     }
 
@@ -116,36 +108,25 @@
     previewEl.innerHTML = HRL.markdownToHtml(text);
   }
 
-  function loadGhForm() {
-    const s = HRL.loadGithubSettings();
+  function ensureRepoMeta() {
     const pub = HRL.getPublicRepoConfig();
-    if (gh.token) gh.token.value = s.token || '';
-    if (gh.owner) gh.owner.value = s.owner || pub.owner;
-    if (gh.repo) gh.repo.value = s.repo || pub.repo;
-    if (gh.branch) gh.branch.value = s.branch || pub.branch;
-    if (gh.path) gh.path.value = s.path || meta.ghPathDefault;
-  }
-
-  function saveGh() {
+    const s = HRL.loadGithubSettings();
     HRL.saveGithubSettings({
-      token: gh.token.value.trim(),
-      owner: gh.owner.value.trim(),
-      repo: gh.repo.value.trim(),
-      branch: gh.branch.value.trim() || 'main',
-      path: gh.path.value.trim() || meta.ghPathDefault
+      owner: s.owner || pub.owner,
+      repo: s.repo || pub.repo,
+      branch: s.branch || pub.branch,
+      path: s.path || meta.ghPathDefault
     });
-    HRL.setStatus(document.getElementById('settingsStatus'), 'Настройки GitHub сохранены.', 'ok');
   }
 
-  function registerCreated(data, link, shortLink) {
+  function registerCreated(data, shortLink) {
     const list = JSON.parse(localStorage.getItem(meta.storageCreated) || '[]');
     const idx = list.findIndex((x) => x.id === data.id);
     const row = {
       id: data.id,
       label: data.label,
-      fio: data.fio,
+      fioMasked: HRLSecure.maskName(data.fio),
       createdAt: new Date().toISOString(),
-      link,
       shortLink: shortLink || '',
       status: 'not_signed',
       signedAt: ''
@@ -169,56 +150,39 @@
     }
     empty.style.display = 'none';
     table.style.display = 'table';
-    body.innerHTML = list.slice().reverse().map((item, i) => `
+    body.innerHTML = list.slice().reverse().map((item, i) => {
+      const copy = item.shortLink || '';
+      const copyBtn = copy
+        ? `<button type="button" class="btn alt btn-row" data-copy="${HRL.escapeHtml(copy)}">Ссылка</button>`
+        : '—';
+      return `
       <tr>
         <td>${i + 1}</td>
         <td>${HRL.escapeHtml(item.label || item.id)}</td>
-        <td>${HRL.escapeHtml(item.fio || '')}</td>
+        <td>${HRL.escapeHtml(item.fioMasked || HRLSecure.maskName(item.fio || ''))}</td>
         <td>${item.createdAt ? new Date(item.createdAt).toLocaleString('ru-RU') : ''}</td>
         <td>${item.signedAt ? new Date(item.signedAt).toLocaleString('ru-RU') : '—'}</td>
         <td>${item.status === 'signed' ? 'Подписан' : 'Не подписан'}</td>
-        <td>
-          <button type="button" class="btn alt btn-row" data-copy="${HRL.escapeHtml(item.shortLink || item.link || '')}">${item.shortLink ? 'Короткая' : 'Ссылка'}</button>
-        </td>
-      </tr>
-    `).join('');
-  }
-
-  function ghFormFields() {
-    return {
-      token: gh.token?.value?.trim() || '',
-      owner: gh.owner?.value?.trim() || '',
-      repo: gh.repo?.value?.trim() || '',
-      branch: gh.branch?.value?.trim() || 'main',
-      path: gh.path?.value?.trim() || meta.ghPathDefault
-    };
+        <td>${copyBtn}</td>
+      </tr>`;
+    }).join('');
   }
 
   async function syncSigned(silent) {
-    const ref = HRL.getRepoRef(ghFormFields(), meta.ghPathDefault);
+    const settings = HRL.getGithubSettings(meta.ghPathDefault);
+    const ref = HRL.getRepoRef(settings || HRL.getPublicRepoConfig(), meta.ghPathDefault);
     if (!ref.owner || !ref.repo) {
-      if (!silent) {
-        HRL.setStatus(listStatus, 'Укажите Owner и Repo (уже подставлены по умолчанию) и нажмите «Сохранить».', 'warn');
-      }
+      if (!silent) HRL.setStatus(listStatus, 'Репозиторий не настроен.', 'warn');
       return;
     }
     if (!silent) HRL.setStatus(listStatus, 'Загрузка подписей...', 'warn');
 
     try {
-      const withToken = HRL.getGithubSettings(ghFormFields());
+      const withToken = settings?.token ? settings : null;
       let remote = withToken ? await HRL.fetchSignedFromGithub(withToken) : null;
       if (!remote) remote = await HRL.fetchSignedPublic(ref);
       if (!remote) {
-        if (!silent) {
-          const hasToken = Boolean(ghFormFields().token);
-          HRL.setStatus(
-            listStatus,
-            hasToken
-              ? 'Не удалось загрузить файл подписей. Проверьте token и путь.'
-              : 'Подписей пока нет или файл пуст. Token нужен только для сохранения новых документов на GitHub.',
-            'warn'
-          );
-        }
+        if (!silent) HRL.setStatus(listStatus, 'Подписей пока нет или файл пуст.', 'warn');
         return;
       }
       const created = JSON.parse(localStorage.getItem(meta.storageCreated) || '[]');
@@ -252,35 +216,23 @@
     HRL.setStatus(formStatus, 'Готовим документ для подписи...', 'warn');
     await HRL.sleep(150);
 
-    const fields = ghFormFields();
-    const signPath = fields.path || meta.ghPathDefault;
-    const ref = HRL.getRepoRef(fields, meta.ghPathDefault);
-    const settings = HRL.getGithubSettings(fields);
-
+    const settings = HRL.getGithubSettings(meta.ghPathDefault);
     const id = HRL.makeSignId(docType);
     const payload = { ...data, docType, id };
     let link = '';
 
-    if (settings?.token && ref.owner && ref.repo) {
+    if (settings?.token) {
       try {
-        await HRL.savePendingDoc(settings, id, payload, signPath);
+        await HRL.savePendingDoc(settings, id, payload);
         link = HRL.buildSignLinkById(docType, id);
       } catch (e) {
-        HRL.setStatus(formStatus, 'Не удалось сохранить документ на GitHub. Введите token → «Сохранить».', 'err');
+        HRL.setStatus(formStatus, 'Не удалось сохранить документ. Проверьте служебный ключ на странице входа.', 'err');
         return;
       }
     } else {
-      if (!settings?.token) {
-        HRL.setStatus(formStatus, 'Token не указан — ссылка будет без GitHub (короткая). Укажите token для надёжной работы.', 'warn');
-        await HRL.sleep(400);
-      }
-      link = HRL.buildSignLink(docType, payload, settings, signPath);
+      link = HRL.buildSignLink(docType, payload);
     }
 
-    if (linkUrl) {
-      linkUrl.textContent = link;
-      linkBox?.classList.add('active');
-    }
     if (shortBox) shortBox.classList.remove('active');
     if (shortUrl) shortUrl.textContent = '';
 
@@ -289,7 +241,7 @@
     if (short && shortUrl && shortBox) {
       shortUrl.textContent = short;
       shortBox.classList.add('active');
-      registerCreated(data, link, short);
+      registerCreated(data, short);
       try {
         await navigator.clipboard.writeText(short);
         HRL.setStatus(formStatus, 'Ссылка на подпись скопирована — отправьте только её клиенту.', 'ok');
@@ -297,26 +249,15 @@
         HRL.setStatus(formStatus, 'Короткая ссылка готова. Скопируйте и отправьте клиенту.', 'ok');
       }
     } else {
-      registerCreated(data, link, '');
-      HRL.setStatus(formStatus, 'Ссылка на подпись готова (сократить не вышло — скопируйте из технического блока).', 'warn');
+      registerCreated(data, '');
+      HRL.setStatus(formStatus, 'Ссылку сократить не удалось. Повторите или проверьте сеть.', 'warn');
     }
     renderPreview();
   }
 
   document.getElementById('previewBtn')?.addEventListener('click', renderPreview);
   document.getElementById('generateBtn')?.addEventListener('click', generateLink);
-  document.getElementById('saveGhBtn')?.addEventListener('click', saveGh);
   document.getElementById('syncBtn')?.addEventListener('click', syncSigned);
-  document.getElementById('copyBtn')?.addEventListener('click', async () => {
-    const link = linkUrl.textContent.trim();
-    if (!link) return;
-    try {
-      await navigator.clipboard.writeText(link);
-      HRL.setStatus(formStatus, 'Полная ссылка скопирована.', 'ok');
-    } catch (e) {
-      HRL.setStatus(formStatus, 'Не удалось скопировать.', 'err');
-    }
-  });
   document.getElementById('copyShortBtn')?.addEventListener('click', async () => {
     const short = shortUrl?.textContent.trim() || '';
     if (!short) {
@@ -325,7 +266,7 @@
     }
     try {
       await navigator.clipboard.writeText(short);
-      HRL.setStatus(formStatus, 'Короткая ссылка скопирована.', 'ok');
+      HRL.setStatus(formStatus, 'Ссылка скопирована.', 'ok');
     } catch (e) {
       HRL.setStatus(formStatus, 'Не удалось скопировать.', 'err');
     }
@@ -340,6 +281,10 @@
       HRL.setStatus(formStatus, 'Ошибка копирования.', 'err');
     }
   });
+  document.getElementById('lockBtn')?.addEventListener('click', () => {
+    HRLSecure.clearUnlock();
+    location.href = 'unlock.html';
+  });
 
   document.querySelectorAll('input, textarea, select').forEach((el) => {
     el.addEventListener('input', renderPreview);
@@ -349,26 +294,7 @@
   const rd = document.getElementById('reportDate');
   if (rd && !rd.value) rd.valueAsDate = new Date();
 
-  function ensureGhDefaultsSaved() {
-    HRL.bootstrapGhFromHash();
-    HRL.applyDeployGhConfig(meta.ghPathDefault);
-    const s = HRL.loadGithubSettings();
-    const pub = HRL.getPublicRepoConfig();
-    HRL.saveGithubSettings({
-      token: s.token || '',
-      owner: s.owner || pub.owner,
-      repo: s.repo || pub.repo,
-      branch: s.branch || pub.branch,
-      path: s.path || meta.ghPathDefault
-    });
-    loadGhForm();
-    if (HRL.loadGithubSettings().token) {
-      HRL.setStatus(document.getElementById('settingsStatus'), 'GitHub подключён.', 'ok');
-    }
-  }
-
-  loadGhForm();
-  ensureGhDefaultsSaved();
+  ensureRepoMeta();
   renderPreview();
   renderTable();
   syncSigned(true);

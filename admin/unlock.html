@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Вход — HR & Legal</title>
+<link href="https://fonts.googleapis.com/css2?family=PT+Serif:wght@400;700&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="wrap" style="max-width:420px;margin:40px auto">
+  <div class="header">
+    <div class="logo">HR & Legal</div>
+    <div class="logo-sub">Служебный доступ. Ключи не отображаются после сохранения.</div>
+  </div>
+
+  <div class="card">
+    <h3>Пин-код</h3>
+    <p class="muted">При первом входе задайте свой пин в поле «Новый пин».</p>
+    <label for="pin">Пин-код</label>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12">
+    <label for="pinNew" style="margin-top:12px;display:block">Новый пин (необязательно)</label>
+    <input id="pinNew" type="password" inputmode="numeric" autocomplete="off" maxlength="12">
+    <button class="btn" id="unlockBtn" type="button" style="margin-top:14px">Войти</button>
+    <div class="status" id="pinStatus"></div>
+  </div>
+
+  <div class="card" id="keyCard" style="display:none">
+    <h3>Служебный ключ</h3>
+    <p class="muted">Для сохранения документов в репозиторий. Вводится один раз.</p>
+    <label for="serviceKey">Ключ</label>
+    <input id="serviceKey" type="password" autocomplete="off" placeholder="••••••••••••••••">
+    <button class="btn alt" id="saveKeyBtn" type="button" style="margin-top:12px">Сохранить ключ</button>
+    <div class="status" id="keyStatus"></div>
+  </div>
+
+  <p class="nav-back"><a href="../index.html" class="btn alt">← На главную</a></p>
+</div>
+<script src="../assets/secure-store.js"></script>
+<script src="../assets/app.js"></script>
+<script>
+(function () {
+  const pinEl = document.getElementById('pin');
+  const pinNew = document.getElementById('pinNew');
+  const pinStatus = document.getElementById('pinStatus');
+  const keyCard = document.getElementById('keyCard');
+  const keyStatus = document.getElementById('keyStatus');
+  const params = new URLSearchParams(location.search);
+  const next = params.get('next') || '../index.html';
+
+  function resolveNext() {
+    if (next.startsWith('http')) return next;
+    if (next.startsWith('../') || next.startsWith('./')) return next;
+    if (next.startsWith('admin/')) return '../' + next;
+    return next;
+  }
+
+  function goNext() {
+    location.href = resolveNext();
+  }
+
+  const ghMatch = location.hash.match(/^#ghsetup=(.+)$/);
+  if (ghMatch) {
+    HRLSecure.setGithubToken(decodeURIComponent(ghMatch[1]));
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+
+  if (HRLSecure.isUnlocked()) {
+    if (!HRLSecure.hasGithubToken()) keyCard.style.display = 'block';
+    else goNext();
+  }
+
+  document.getElementById('unlockBtn').addEventListener('click', () => {
+    const pin = pinEl.value.trim();
+    if (!HRLSecure.checkPin(pin)) {
+      HRL.setStatus(pinStatus, 'Неверный пин-код.', 'err');
+      return;
+    }
+    const neu = pinNew.value.trim();
+    if (neu) HRLSecure.setPin(neu);
+    HRLSecure.setUnlockSession();
+    HRL.setStatus(pinStatus, 'Доступ открыт.', 'ok');
+    if (!HRLSecure.hasGithubToken()) {
+      keyCard.style.display = 'block';
+      return;
+    }
+    goNext();
+  });
+
+  document.getElementById('saveKeyBtn').addEventListener('click', () => {
+    const k = document.getElementById('serviceKey').value.trim();
+    if (!k) {
+      HRL.setStatus(keyStatus, 'Введите ключ.', 'err');
+      return;
+    }
+    HRLSecure.setGithubToken(k);
+    document.getElementById('serviceKey').value = '';
+    const pub = HRL.getPublicRepoConfig();
+    HRL.saveGithubSettings({ owner: pub.owner, repo: pub.repo, branch: pub.branch, path: '' });
+    HRL.setStatus(keyStatus, 'Ключ сохранён. Повторно не показывается.', 'ok');
+    setTimeout(goNext, 400);
+  });
+})();
+</script>
+</body>
+</html>

@@ -94,67 +94,57 @@
     }
   }
 
+  function stripLegacyPlainToken() {
+    try {
+      const meta = JSON.parse(localStorage.getItem(STORAGE_SETTINGS) || '{}');
+      if (!meta.token) return;
+      if (global.HRLSecure && !global.HRLSecure.hasGithubToken()) {
+        global.HRLSecure.setGithubToken(meta.token);
+      }
+      delete meta.token;
+      localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(meta));
+    } catch (err) { /* ignore */ }
+  }
+
   function loadGithubSettings() {
-    return JSON.parse(localStorage.getItem(STORAGE_SETTINGS) || '{}');
+    stripLegacyPlainToken();
+    const pub = getPublicRepoConfig();
+    const meta = JSON.parse(localStorage.getItem(STORAGE_SETTINGS) || '{}');
+    const token = global.HRLSecure?.getGithubToken?.() || '';
+    return {
+      token: String(token).trim(),
+      owner: meta.owner || pub.owner,
+      repo: meta.repo || pub.repo,
+      branch: meta.branch || pub.branch,
+      path: meta.path || ''
+    };
   }
 
   function saveGithubSettings(settings) {
-    localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(settings));
-  }
-
-  /** Одноразовая настройка: admin/...#ghsetup=TOKEN (токен убирается из адресной строки). */
-  function bootstrapGhFromHash() {
-    if (!/\/admin\//.test(location.pathname)) return false;
-    const m = location.hash.match(/^#ghsetup=(.+)$/);
-    if (!m) return false;
     const pub = getPublicRepoConfig();
-    saveGithubSettings({
-      token: decodeURIComponent(m[1]),
-      owner: pub.owner,
-      repo: pub.repo,
-      branch: pub.branch
-    });
-    history.replaceState(null, '', location.pathname + location.search);
-    return true;
+    const { token, ...rest } = settings || {};
+    if (token && global.HRLSecure) global.HRLSecure.setGithubToken(token);
+    const meta = {
+      owner: rest.owner || pub.owner,
+      repo: rest.repo || pub.repo,
+      branch: rest.branch || pub.branch,
+      path: rest.path || ''
+    };
+    localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(meta));
   }
 
-  /** Токен из assets/gh-config.js (собирается GitHub Actions из секрета). */
-  function applyDeployGhConfig(defaultPath) {
-    const d = global.HRL_DEPLOY_GH;
-    if (!d?.token) return false;
+  function getGithubSettings(extraPath) {
     const pub = getPublicRepoConfig();
     const s = loadGithubSettings();
-    if (s.token) return false;
-    saveGithubSettings({
-      token: String(d.token).trim(),
-      owner: d.owner || pub.owner,
-      repo: d.repo || pub.repo,
-      branch: d.branch || pub.branch,
-      path: s.path || defaultPath || ''
-    });
-    return true;
-  }
-
-  function getGithubSettings(form) {
-    const fromForm = form ? {
-      token: (form.token || '').trim(),
-      owner: (form.owner || '').trim(),
-      repo: (form.repo || '').trim(),
-      branch: (form.branch || 'main').trim() || 'main',
-      path: (form.path || '').trim()
-    } : null;
-    if (fromForm && fromForm.token && fromForm.owner && fromForm.repo) return fromForm;
-    const stored = loadGithubSettings();
-    if (stored.token && stored.owner && stored.repo) {
-      return {
-        token: String(stored.token).trim(),
-        owner: String(stored.owner).trim(),
-        repo: String(stored.repo).trim(),
-        branch: String(stored.branch || 'main').trim() || 'main',
-        path: String(stored.path || '').trim()
-      };
-    }
-    return null;
+    const path = extraPath || s.path;
+    if (!s.owner || !s.repo) return null;
+    return {
+      token: s.token,
+      owner: s.owner,
+      repo: s.repo,
+      branch: s.branch || 'main',
+      path
+    };
   }
 
   function githubHeaders(token, mode) {
@@ -261,25 +251,15 @@
     };
   }
 
-  /** Данные для страницы подписи (без шаблона — текст на sign/*.html). */
-  function buildSignPayload(data, ghSettings, signPath) {
-    const { tpl, gh, ...rest } = data;
-    const payload = { ...rest };
-    if (ghSettings && ghSettings.token) {
-      payload.gh = {
-        token: ghSettings.token,
-        owner: ghSettings.owner,
-        repo: ghSettings.repo,
-        branch: ghSettings.branch || 'main',
-        path: signPath || ghSettings.path
-      };
-    }
-    return payload;
+  /** Только данные документа — без токенов и служебных полей (для клиента). */
+  function buildClientDocPayload(data) {
+    const { tpl, gh, ...rest } = data || {};
+    return { ...rest };
   }
 
-  function buildSignLink(docType, payload, ghSettings, signPath) {
+  function buildSignLink(docType, payload) {
     const url = new URL(`${getSiteBase()}/sign/${docType}.html`);
-    url.searchParams.set('d', utf8Base64Encode(buildSignPayload(payload, ghSettings, signPath)));
+    url.searchParams.set('d', utf8Base64Encode(buildClientDocPayload(payload)));
     return url.href;
   }
 
@@ -291,9 +271,10 @@
     return `${docType}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
-  async function savePendingDoc(ghSettings, id, payload, signPath) {
+  async function savePendingDoc(ghSettings, id, payload) {
+    if (!ghSettings?.token) return;
     const path = `data/pending/${id}.json`;
-    const bodyText = JSON.stringify(buildSignPayload(payload, ghSettings, signPath), null, 2);
+    const bodyText = JSON.stringify(buildClientDocPayload(payload), null, 2);
     const contentUrl = `https://api.github.com/repos/${ghSettings.owner}/${ghSettings.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(ghSettings.branch || 'main')}`;
     let headers = githubHeaders(ghSettings.token, 'bearer');
     let getResp = await fetch(contentUrl, { headers });
@@ -402,15 +383,13 @@
     readSignPayloadFromUrl,
     getSiteBase,
     getPublicRepoConfig,
-    buildSignPayload,
     buildSignLinkById,
     makeSignId,
     savePendingDoc,
     loadPendingDoc,
     loadGithubSettings,
     saveGithubSettings,
-    bootstrapGhFromHash,
-    applyDeployGhConfig,
+    buildClientDocPayload,
     getGithubSettings,
     getRepoRef,
     fetchSignedPublic,

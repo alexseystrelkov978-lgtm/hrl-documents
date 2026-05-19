@@ -9,7 +9,10 @@
 </head>
 <body data-doc-type="claim">
 <div class="wrap">
-  <p class="nav-back"><a href="../index.html" class="btn alt">← Все документы</a></p>
+  <p class="nav-back">
+    <a href="../index.html" class="btn alt">← Все документы</a>
+    <button type="button" class="btn alt" id="lockBtn" style="margin-left:8px">Заблокировать</button>
+  </p>
   <div class="header">
     <div class="logo">Исковое заявление</div>
     <div class="logo-sub">Только поля иска. Клиент подписывает биометрией на отдельной странице.</div>
@@ -41,25 +44,8 @@
       <button class="btn" id="copyShortBtn" type="button">Скопировать ссылку на подпись</button>
     </div>
     <div class="status" id="formStatus"></div>
-    <details class="admin-tech">
-      <summary>Техническая ссылка (только для администратора)</summary>
-      <div class="link-box" id="linkBox"><span id="linkUrl"></span></div>
-      <button class="btn alt btn-row" id="copyBtn" type="button">Копировать полную</button>
-    </details>
   </div>
 
-  <div class="card">
-    <details class="admin-settings" open><summary>Настройки GitHub</h3>
-    <div class="settings-grid">
-      <div><label for="ghToken">Token</label><input id="ghToken" type="password"></div>
-      <div><label for="ghOwner">Owner</label><input id="ghOwner" type="text" value="alexseystrelkov978-lgtm"></div>
-      <div><label for="ghRepo">Repo</label><input id="ghRepo" type="text" value="hrl-documents"></div>
-      <div><label for="ghBranch">Branch</label><input id="ghBranch" type="text" value="main"></div>
-      <div class="span-2"><label for="ghPath">Файл подписей</label><input id="ghPath" type="text" value="data/signed_claim.json"></div>
-    </div>
-    <button class="btn alt" id="saveGhBtn" type="button">Сохранить</button>
-    <div class="status" id="settingsStatus"></div>
-  </div>
 
   <div class="card">
     <h3>Реестр</h3>
@@ -73,9 +59,8 @@
     </table>
   </div>
 </div>
+<script src="../assets/secure-store.js"></script>
 <script src="../assets/templates.js"></script>
-    <script src="../assets/gh-config.js"></script>
-
 <script src="../assets/app.js"></script>
 <script src="../assets/admin-page.js"></script>
 </body>
