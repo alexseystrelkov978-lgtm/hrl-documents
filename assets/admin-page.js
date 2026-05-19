@@ -350,16 +350,20 @@
   if (rd && !rd.value) rd.valueAsDate = new Date();
 
   function ensureGhDefaultsSaved() {
+    HRL.bootstrapGhFromHash();
+    HRL.applyDeployGhConfig(meta.ghPathDefault);
     const s = HRL.loadGithubSettings();
     const pub = HRL.getPublicRepoConfig();
-    if (!s.owner && pub.owner) {
-      HRL.saveGithubSettings({
-        token: s.token || '',
-        owner: pub.owner,
-        repo: pub.repo,
-        branch: pub.branch,
-        path: s.path || meta.ghPathDefault
-      });
+    HRL.saveGithubSettings({
+      token: s.token || '',
+      owner: s.owner || pub.owner,
+      repo: s.repo || pub.repo,
+      branch: s.branch || pub.branch,
+      path: s.path || meta.ghPathDefault
+    });
+    loadGhForm();
+    if (HRL.loadGithubSettings().token) {
+      HRL.setStatus(document.getElementById('settingsStatus'), 'GitHub подключён.', 'ok');
     }
   }
 

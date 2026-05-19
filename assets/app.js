@@ -102,6 +102,39 @@
     localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(settings));
   }
 
+  /** Одноразовая настройка: admin/...#ghsetup=TOKEN (токен убирается из адресной строки). */
+  function bootstrapGhFromHash() {
+    if (!/\/admin\//.test(location.pathname)) return false;
+    const m = location.hash.match(/^#ghsetup=(.+)$/);
+    if (!m) return false;
+    const pub = getPublicRepoConfig();
+    saveGithubSettings({
+      token: decodeURIComponent(m[1]),
+      owner: pub.owner,
+      repo: pub.repo,
+      branch: pub.branch
+    });
+    history.replaceState(null, '', location.pathname + location.search);
+    return true;
+  }
+
+  /** Токен из assets/gh-config.js (собирается GitHub Actions из секрета). */
+  function applyDeployGhConfig(defaultPath) {
+    const d = global.HRL_DEPLOY_GH;
+    if (!d?.token) return false;
+    const pub = getPublicRepoConfig();
+    const s = loadGithubSettings();
+    if (s.token) return false;
+    saveGithubSettings({
+      token: String(d.token).trim(),
+      owner: d.owner || pub.owner,
+      repo: d.repo || pub.repo,
+      branch: d.branch || pub.branch,
+      path: s.path || defaultPath || ''
+    });
+    return true;
+  }
+
   function getGithubSettings(form) {
     const fromForm = form ? {
       token: (form.token || '').trim(),
@@ -376,6 +409,8 @@
     loadPendingDoc,
     loadGithubSettings,
     saveGithubSettings,
+    bootstrapGhFromHash,
+    applyDeployGhConfig,
     getGithubSettings,
     getRepoRef,
     fetchSignedPublic,
