@@ -184,23 +184,41 @@
     `).join('');
   }
 
-  async function syncSigned() {
-    const settings = HRL.getGithubSettings({
-      token: gh.token.value,
-      owner: gh.owner.value,
-      repo: gh.repo.value,
-      branch: gh.branch.value,
-      path: gh.path.value || meta.ghPathDefault
-    });
-    if (!settings) {
-      HRL.setStatus(listStatus, 'GitHub не настроен.', 'warn');
+  function ghFormFields() {
+    return {
+      token: gh.token?.value?.trim() || '',
+      owner: gh.owner?.value?.trim() || '',
+      repo: gh.repo?.value?.trim() || '',
+      branch: gh.branch?.value?.trim() || 'main',
+      path: gh.path?.value?.trim() || meta.ghPathDefault
+    };
+  }
+
+  async function syncSigned(silent) {
+    const ref = HRL.getRepoRef(ghFormFields(), meta.ghPathDefault);
+    if (!ref.owner || !ref.repo) {
+      if (!silent) {
+        HRL.setStatus(listStatus, 'Укажите Owner и Repo (уже подставлены по умолчанию) и нажмите «Сохранить».', 'warn');
+      }
       return;
     }
-    settings.path = settings.path || meta.ghPathDefault;
+    if (!silent) HRL.setStatus(listStatus, 'Загрузка подписей...', 'warn');
+
     try {
-      const remote = await HRL.fetchSignedFromGithub(settings);
+      const withToken = HRL.getGithubSettings(ghFormFields());
+      let remote = withToken ? await HRL.fetchSignedFromGithub(withToken) : null;
+      if (!remote) remote = await HRL.fetchSignedPublic(ref);
       if (!remote) {
-        HRL.setStatus(listStatus, 'Не удалось загрузить из GitHub.', 'warn');
+        if (!silent) {
+          const hasToken = Boolean(ghFormFields().token);
+          HRL.setStatus(
+            listStatus,
+            hasToken
+              ? 'Не удалось загрузить файл подписей. Проверьте token и путь.'
+              : 'Подписей пока нет или файл пуст. Token нужен только для сохранения новых документов на GitHub.',
+            'warn'
+          );
+        }
         return;
       }
       const created = JSON.parse(localStorage.getItem(meta.storageCreated) || '[]');
@@ -214,10 +232,13 @@
       });
       localStorage.setItem(meta.storageCreated, JSON.stringify(updated));
       localStorage.setItem(meta.storageSigned, JSON.stringify(remote));
-      HRL.setStatus(listStatus, 'Синхронизировано с GitHub.', 'ok');
+      const n = updated.filter((c) => c.status === 'signed').length;
+      if (!silent) {
+        HRL.setStatus(listStatus, `Синхронизировано. Подписано: ${n} из ${created.length}.`, 'ok');
+      }
       renderTable();
     } catch (err) {
-      HRL.setStatus(listStatus, 'Ошибка синхронизации.', 'err');
+      if (!silent) HRL.setStatus(listStatus, 'Ошибка синхронизации.', 'err');
     }
   }
 
@@ -231,28 +252,28 @@
     HRL.setStatus(formStatus, 'Готовим документ для подписи...', 'warn');
     await HRL.sleep(150);
 
-    const signPath = gh.path?.value?.trim() || meta.ghPathDefault;
-    const settings = HRL.getGithubSettings({
-      token: gh.token.value,
-      owner: gh.owner.value,
-      repo: gh.repo.value,
-      branch: gh.branch.value,
-      path: signPath
-    });
+    const fields = ghFormFields();
+    const signPath = fields.path || meta.ghPathDefault;
+    const ref = HRL.getRepoRef(fields, meta.ghPathDefault);
+    const settings = HRL.getGithubSettings(fields);
 
     const id = HRL.makeSignId(docType);
     const payload = { ...data, docType, id };
     let link = '';
 
-    if (settings?.token && settings.owner && settings.repo) {
+    if (settings?.token && ref.owner && ref.repo) {
       try {
         await HRL.savePendingDoc(settings, id, payload, signPath);
         link = HRL.buildSignLinkById(docType, id);
       } catch (e) {
-        HRL.setStatus(formStatus, 'Не удалось сохранить документ на GitHub. Проверьте токен.', 'err');
+        HRL.setStatus(formStatus, 'Не удалось сохранить документ на GitHub. Введите token → «Сохранить».', 'err');
         return;
       }
     } else {
+      if (!settings?.token) {
+        HRL.setStatus(formStatus, 'Token не указан — ссылка будет без GitHub (короткая). Укажите token для надёжной работы.', 'warn');
+        await HRL.sleep(400);
+      }
       link = HRL.buildSignLink(docType, payload, settings, signPath);
     }
 
@@ -328,7 +349,23 @@
   const rd = document.getElementById('reportDate');
   if (rd && !rd.value) rd.valueAsDate = new Date();
 
+  function ensureGhDefaultsSaved() {
+    const s = HRL.loadGithubSettings();
+    const pub = HRL.getPublicRepoConfig();
+    if (!s.owner && pub.owner) {
+      HRL.saveGithubSettings({
+        token: s.token || '',
+        owner: pub.owner,
+        repo: pub.repo,
+        branch: pub.branch,
+        path: s.path || meta.ghPathDefault
+      });
+    }
+  }
+
   loadGhForm();
+  ensureGhDefaultsSaved();
   renderPreview();
   renderTable();
+  syncSigned(true);
 })();

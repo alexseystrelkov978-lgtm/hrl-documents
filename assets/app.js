@@ -129,7 +129,32 @@
     return { Authorization: auth, Accept: 'application/vnd.github+json' };
   }
 
+  function getRepoRef(fields, defaultPath) {
+    const pub = getPublicRepoConfig();
+    const stored = loadGithubSettings();
+    const owner = String(fields?.owner ?? stored.owner ?? pub.owner ?? '').trim();
+    const repo = String(fields?.repo ?? stored.repo ?? pub.repo ?? '').trim();
+    const branch = String(fields?.branch ?? stored.branch ?? pub.branch ?? 'main').trim() || 'main';
+    const path = String(fields?.path ?? stored.path ?? defaultPath ?? '').trim();
+    return { owner, repo, branch, path };
+  }
+
+  /** Чтение подписей из публичного репозитория (без token). */
+  async function fetchSignedPublic(ref) {
+    if (!ref.owner || !ref.repo || !ref.path) return null;
+    const url = `https://raw.githubusercontent.com/${ref.owner}/${ref.repo}/${ref.branch}/${ref.path}?t=${Date.now()}`;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      const list = JSON.parse(await resp.text() || '[]');
+      return Array.isArray(list) ? list : [];
+    } catch (err) {
+      return null;
+    }
+  }
+
   async function fetchSignedFromGithub(settings) {
+    if (!settings?.token) return null;
     const path = settings.path.split('/').map(encodeURIComponent).join('/');
     const url = `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${path}?ref=${encodeURIComponent(settings.branch)}`;
     let resp = await fetch(url, { headers: githubHeaders(settings.token, 'bearer') });
@@ -352,6 +377,8 @@
     loadGithubSettings,
     saveGithubSettings,
     getGithubSettings,
+    getRepoRef,
+    fetchSignedPublic,
     fetchSignedFromGithub,
     pushSignedToGithub,
     buildSignLink,
