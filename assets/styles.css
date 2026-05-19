@@ -113,6 +113,33 @@ input:focus, textarea:focus {
   word-break: break-all;
   margin-bottom: 8px;
 }
+.client-link-box {
+  background: #e8f4ea;
+  border: 2px solid #00a844;
+  border-radius: 8px;
+  padding: 14px;
+  margin-top: 12px;
+}
+.client-link-box #shortUrl {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a3a5c;
+}
+.admin-tech {
+  margin-top: 14px;
+  font-size: 13px;
+}
+.admin-tech summary {
+  cursor: pointer;
+  color: #666;
+  font-family: 'PT Sans', sans-serif;
+}
+.admin-settings summary {
+  cursor: pointer;
+  font-family: 'PT Sans', sans-serif;
+  font-weight: 700;
+  color: #1a3a5c;
+}
 .nav-back { margin-bottom: 14px; }
 .doc-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
 .doc-card {

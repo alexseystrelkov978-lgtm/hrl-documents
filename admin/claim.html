@@ -33,20 +33,23 @@
   </div>
 
   <div class="card">
-    <h3>Ссылка для клиента</h3>
-    <button class="btn" id="generateBtn" type="button">Создать ссылку</button>
-    <button class="btn alt" id="copyBtn" type="button">Копировать полную</button>
-    <div class="link-box" id="linkBox"><span id="linkUrl"></span></div>
-    <div class="short-box" id="shortBox">
-      <div class="muted" style="margin-bottom:6px">Короткая ссылка для клиента:</div>
+    <h3>Ссылка на подпись для клиента</h3>
+    <p class="muted">Клиент откроет готовый документ и подтвердит биометрией. Отправляйте <strong>только</strong> короткую ссылку ниже.</p>
+    <button class="btn" id="generateBtn" type="button">Сформировать ссылку на подпись</button>
+    <div class="short-box client-link-box" id="shortBox">
       <div id="shortUrl"></div>
-      <button class="btn" id="copyShortBtn" type="button">Скопировать короткую</button>
+      <button class="btn" id="copyShortBtn" type="button">Скопировать ссылку на подпись</button>
     </div>
     <div class="status" id="formStatus"></div>
+    <details class="admin-tech">
+      <summary>Техническая ссылка (только для администратора)</summary>
+      <div class="link-box" id="linkBox"><span id="linkUrl"></span></div>
+      <button class="btn alt btn-row" id="copyBtn" type="button">Копировать полную</button>
+    </details>
   </div>
 
   <div class="card">
-    <h3>Настройки GitHub</h3>
+    <details class="admin-settings" open><summary>Настройки GitHub</h3>
     <div class="settings-grid">
       <div><label for="ghToken">Token</label><input id="ghToken" type="password"></div>
       <div><label for="ghOwner">Owner</label><input id="ghOwner" type="text"></div>

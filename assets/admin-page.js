@@ -118,10 +118,11 @@
 
   function loadGhForm() {
     const s = HRL.loadGithubSettings();
+    const pub = HRL.getPublicRepoConfig();
     if (gh.token) gh.token.value = s.token || '';
-    if (gh.owner) gh.owner.value = s.owner || '';
-    if (gh.repo) gh.repo.value = s.repo || '';
-    if (gh.branch) gh.branch.value = s.branch || 'main';
+    if (gh.owner) gh.owner.value = s.owner || pub.owner;
+    if (gh.repo) gh.repo.value = s.repo || pub.repo;
+    if (gh.branch) gh.branch.value = s.branch || pub.branch;
     if (gh.path) gh.path.value = s.path || meta.ghPathDefault;
   }
 
@@ -227,32 +228,56 @@
       HRL.setStatus(formStatus, err, 'err');
       return;
     }
-    HRL.setStatus(formStatus, 'Формируем ссылку...', 'warn');
-    await HRL.sleep(200);
+    HRL.setStatus(formStatus, 'Готовим документ для подписи...', 'warn');
+    await HRL.sleep(150);
+
+    const signPath = gh.path?.value?.trim() || meta.ghPathDefault;
     const settings = HRL.getGithubSettings({
       token: gh.token.value,
       owner: gh.owner.value,
       repo: gh.repo.value,
       branch: gh.branch.value,
-      path: gh.path.value || meta.ghPathDefault
+      path: signPath
     });
-    const payload = { ...data, gh: settings ? { ...settings, path: settings.path || meta.ghPathDefault } : null };
-    const link = HRL.buildSignLink(docType, payload);
-    linkUrl.textContent = link;
-    linkBox.classList.add('active');
+
+    const id = HRL.makeSignId(docType);
+    const payload = { ...data, docType, id };
+    let link = '';
+
+    if (settings?.token && settings.owner && settings.repo) {
+      try {
+        await HRL.savePendingDoc(settings, id, payload, signPath);
+        link = HRL.buildSignLinkById(docType, id);
+      } catch (e) {
+        HRL.setStatus(formStatus, 'Не удалось сохранить документ на GitHub. Проверьте токен.', 'err');
+        return;
+      }
+    } else {
+      link = HRL.buildSignLink(docType, payload, settings, signPath);
+    }
+
+    if (linkUrl) {
+      linkUrl.textContent = link;
+      linkBox?.classList.add('active');
+    }
     if (shortBox) shortBox.classList.remove('active');
     if (shortUrl) shortUrl.textContent = '';
 
-    HRL.setStatus(formStatus, 'Ссылка создана. Сокращаю...', 'warn');
+    HRL.setStatus(formStatus, 'Сокращаем ссылку на подпись...', 'warn');
     const short = await HRL.shortenUrl(link);
     if (short && shortUrl && shortBox) {
       shortUrl.textContent = short;
       shortBox.classList.add('active');
       registerCreated(data, link, short);
-      HRL.setStatus(formStatus, 'Короткая ссылка готова — отправьте клиенту.', 'ok');
+      try {
+        await navigator.clipboard.writeText(short);
+        HRL.setStatus(formStatus, 'Ссылка на подпись скопирована — отправьте только её клиенту.', 'ok');
+      } catch (e) {
+        HRL.setStatus(formStatus, 'Короткая ссылка готова. Скопируйте и отправьте клиенту.', 'ok');
+      }
     } else {
       registerCreated(data, link, '');
-      HRL.setStatus(formStatus, 'Ссылка готова (сократить не удалось — используйте полную).', 'warn');
+      HRL.setStatus(formStatus, 'Ссылка на подпись готова (сократить не вышло — скопируйте из технического блока).', 'warn');
     }
     renderPreview();
   }

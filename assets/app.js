@@ -1,5 +1,12 @@
 (function (global) {
   const STORAGE_SETTINGS = 'hrl_gh_settings';
+  const STORAGE_SITE = 'hrl_site_settings';
+  const PUBLIC_REPO = {
+    owner: 'alexseystrelkov978-lgtm',
+    repo: 'hrl-documents',
+    branch: 'main',
+    baseUrl: 'https://alexseystrelkov978-lgtm.github.io/hrl-documents'
+  };
 
   function escapeHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -176,10 +183,99 @@
     });
   }
 
-  function buildSignLink(docType, payload) {
-    const base = new URL(`../sign/${docType}.html`, location.href);
-    base.searchParams.set('d', utf8Base64Encode(payload));
-    return base.href;
+  function getSiteBase() {
+    const s = JSON.parse(localStorage.getItem(STORAGE_SITE) || '{}');
+    if (s.baseUrl) return String(s.baseUrl).replace(/\/$/, '');
+    if (location.hostname.includes('github.io')) {
+      const path = location.pathname.replace(/\/admin\/.*$/, '').replace(/\/sign\/.*$/, '').replace(/\/$/, '');
+      return `${location.origin}${path}`;
+    }
+    return PUBLIC_REPO.baseUrl;
+  }
+
+  function getPublicRepoConfig() {
+    const s = JSON.parse(localStorage.getItem(STORAGE_SITE) || '{}');
+    return {
+      owner: s.owner || PUBLIC_REPO.owner,
+      repo: s.repo || PUBLIC_REPO.repo,
+      branch: s.branch || PUBLIC_REPO.branch,
+      baseUrl: getSiteBase()
+    };
+  }
+
+  /** Данные для страницы подписи (без шаблона — текст на sign/*.html). */
+  function buildSignPayload(data, ghSettings, signPath) {
+    const { tpl, gh, ...rest } = data;
+    const payload = { ...rest };
+    if (ghSettings && ghSettings.token) {
+      payload.gh = {
+        token: ghSettings.token,
+        owner: ghSettings.owner,
+        repo: ghSettings.repo,
+        branch: ghSettings.branch || 'main',
+        path: signPath || ghSettings.path
+      };
+    }
+    return payload;
+  }
+
+  function buildSignLink(docType, payload, ghSettings, signPath) {
+    const url = new URL(`${getSiteBase()}/sign/${docType}.html`);
+    url.searchParams.set('d', utf8Base64Encode(buildSignPayload(payload, ghSettings, signPath)));
+    return url.href;
+  }
+
+  function buildSignLinkById(docType, id) {
+    return `${getSiteBase()}/sign/${docType}.html?id=${encodeURIComponent(id)}`;
+  }
+
+  function makeSignId(docType) {
+    return `${docType}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  async function savePendingDoc(ghSettings, id, payload, signPath) {
+    const path = `data/pending/${id}.json`;
+    const bodyText = JSON.stringify(buildSignPayload(payload, ghSettings, signPath), null, 2);
+    const contentUrl = `https://api.github.com/repos/${ghSettings.owner}/${ghSettings.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(ghSettings.branch || 'main')}`;
+    let headers = githubHeaders(ghSettings.token, 'bearer');
+    let getResp = await fetch(contentUrl, { headers });
+    if (getResp.status === 401 || getResp.status === 403) {
+      headers = githubHeaders(ghSettings.token, 'token');
+      getResp = await fetch(contentUrl, { headers });
+    }
+    let sha = '';
+    if (getResp.ok) {
+      const file = await getResp.json();
+      sha = file.sha || '';
+    }
+    const bytes = new TextEncoder().encode(bodyText);
+    let binary = '';
+    bytes.forEach((b) => { binary += String.fromCharCode(b); });
+    await fetch(`https://api.github.com/repos/${ghSettings.owner}/${ghSettings.repo}/contents/${encodeURIComponent(path)}`, {
+      method: 'PUT',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: `pending: ${id}`,
+        content: btoa(binary),
+        branch: ghSettings.branch || 'main',
+        sha: sha || undefined
+      })
+    });
+  }
+
+  async function loadPendingDoc(id) {
+    const cfg = getPublicRepoConfig();
+    const url = `https://raw.githubusercontent.com/${cfg.owner}/${cfg.repo}/${cfg.branch}/data/pending/${encodeURIComponent(id)}.json?t=${Date.now()}`;
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    return resp.json();
+  }
+
+  async function readSignPayloadFromUrl() {
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    if (id) return loadPendingDoc(id);
+    return readPayloadFromUrl();
   }
 
   function signingExtras(data, reportDate) {
@@ -245,6 +341,14 @@
     utf8Base64Encode,
     utf8Base64Decode,
     readPayloadFromUrl,
+    readSignPayloadFromUrl,
+    getSiteBase,
+    getPublicRepoConfig,
+    buildSignPayload,
+    buildSignLinkById,
+    makeSignId,
+    savePendingDoc,
+    loadPendingDoc,
     loadGithubSettings,
     saveGithubSettings,
     getGithubSettings,

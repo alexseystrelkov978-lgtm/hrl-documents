@@ -17,39 +17,27 @@
   const signatureBox = document.getElementById('signatureBox');
   const scannerIcon = document.getElementById('scannerIcon');
 
-  let payload = HRL.readPayloadFromUrl();
-  if (!payload || payload.docType !== docType) {
-    payload = {
-      docType,
-      id: 'DEMO',
-      docNo: 'DEMO-001',
-      fio: 'Демо Пользователь',
-      reportDate: new Date().toISOString().slice(0, 10),
-      reportDateText: HRL.formatDateRu(new Date().toISOString().slice(0, 10)),
-      tpl: window.HRL_TEMPLATES[docType],
-      blockedKztText: '1 500 000 ₸',
-      claimAmountText: '1 500 000 ₸',
-      courtName: '__________________________',
-      plaintiffName: 'Истец',
-      plaintiffAddress: 'Адрес',
-      plaintiffPhone: '+7',
-      defendantName: 'Ответчик',
-      birthYear: '1950',
-      investUsdText: '0 ₸',
-      cryptoUsdText: '0 ₸',
-      euroUsdText: '0 ₸',
-      activeUsdTotalText: '0 ₸',
-      ...HRL.signingExtras({ docNo: 'DEMO-001' }, new Date().toISOString().slice(0, 10))
-    };
-  }
-  if (!payload.tpl) payload.tpl = window.HRL_TEMPLATES[docType];
-
+  let payload = null;
   let holdStart = 0;
   let holding = false;
   let rafId = 0;
 
+  const hasLinkParam = Boolean(
+    new URLSearchParams(location.search).get('id') ||
+    new URLSearchParams(location.search).get('d')
+  );
+
+  function showInvalidLink() {
+    if (bodyEl) {
+      bodyEl.innerHTML = '<p style="text-align:center;color:#666;padding:24px">Ссылка недействительна или устарела.<br>Запросите новую ссылку на подпись у администратора.</p>';
+    }
+    if (scanCard) scanCard.style.display = 'none';
+  }
+
   function render() {
-    const text = HRL.applyTemplate(payload.tpl, payload);
+    if (!payload) return;
+    const tpl = window.HRL_TEMPLATES[docType] || '';
+    const text = HRL.applyTemplate(tpl, payload);
     bodyEl.innerHTML = HRL.markdownToHtml(text);
     const label = payload.docNo || payload.id || '—';
     docMeta.textContent = `${label} • ${new Date().toLocaleDateString('ru-RU')}`;
@@ -131,12 +119,7 @@
       return;
     }
     const signedAt = new Date().toISOString();
-    const record = {
-      id,
-      docType,
-      fio: payload.fio || '',
-      signedAt
-    };
+    const record = { id, docType, fio: payload.fio || '', signedAt };
     list.push(record);
     localStorage.setItem(meta.storageSigned, JSON.stringify(list));
     localStorage.setItem('hrl_last_signed_ping', String(Date.now()));
@@ -180,7 +163,22 @@
     requestAnimationFrame(draw);
   }
 
+  function setupBiometric() {
+    if (!meta.needsBiometric) {
+      if (scanCard) scanCard.style.display = 'none';
+      return;
+    }
+    if (!scanner || !progressBar) return;
+    if (scannerIcon) {
+      scannerIcon.innerHTML = '<svg viewBox="0 0 64 64" width="48" height="48" stroke="#1a3a5c" fill="none"><path d="M32 8c-8 0-14 6-14 14v8"/><path d="M32 20c-2.4 0-4 1.8-4 4.2V40"/><path d="M18 42c0 7.6 6 14 14 14s14-6.4 14-14"/></svg>';
+    }
+    scanner.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+  }
+
   document.getElementById('downloadBtn')?.addEventListener('click', () => {
+    if (!payload) return;
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${payload.id}</title></head><body>${bodyEl.innerHTML}</body></html>`;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
@@ -189,20 +187,40 @@
   });
   document.getElementById('printBtn')?.addEventListener('click', () => window.print());
 
-  render();
-  restoreIfSigned();
+  async function init() {
+    payload = await HRL.readSignPayloadFromUrl();
+    if (!payload || payload.docType !== docType) {
+      if (hasLinkParam) {
+        showInvalidLink();
+        return;
+      }
+      payload = {
+        docType,
+        id: 'DEMO',
+        docNo: 'DEMO-001',
+        fio: 'Демо (только для проверки админом)',
+        reportDate: new Date().toISOString().slice(0, 10),
+        reportDateText: HRL.formatDateRu(new Date().toISOString().slice(0, 10)),
+        blockedKztText: '1 500 000 ₸',
+        claimAmountText: '1 500 000 ₸',
+        courtName: '__________________________',
+        plaintiffName: 'Истец',
+        plaintiffAddress: 'Адрес',
+        plaintiffPhone: '+7',
+        defendantName: 'Ответчик',
+        birthYear: '1950',
+        investUsdText: '0 ₸',
+        cryptoUsdText: '0 ₸',
+        euroUsdText: '0 ₸',
+        activeUsdTotalText: '0 ₸',
+        ...HRL.signingExtras({ docNo: 'DEMO-001' }, new Date().toISOString().slice(0, 10))
+      };
+    }
 
-  if (!meta.needsBiometric) {
-    if (scanCard) scanCard.style.display = 'none';
-    return;
+    render();
+    restoreIfSigned();
+    setupBiometric();
   }
 
-  if (!scanner || !progressBar) return;
-
-  if (scannerIcon) {
-    scannerIcon.innerHTML = '<svg viewBox="0 0 64 64" width="48" height="48" stroke="#1a3a5c" fill="none"><path d="M32 8c-8 0-14 6-14 14v8"/><path d="M32 20c-2.4 0-4 1.8-4 4.2V40"/><path d="M18 42c0 7.6 6 14 14 14s14-6.4 14-14"/></svg>';
-  }
-  scanner.addEventListener('pointerdown', onPointerDown);
-  window.addEventListener('pointerup', onPointerUp);
-  window.addEventListener('pointercancel', onPointerUp);
+  init();
 })();
