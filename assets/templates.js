@@ -127,7 +127,7 @@ window.HRL_META = {
     storageCreated: 'hrl_created_report',
     storageSigned: 'hrl_signed_report',
     ghPathDefault: 'data/signed_report.json',
-    needsBiometric: false
+    needsBiometric: true
   },
   claim: {
     title: 'Исковое заявление',
