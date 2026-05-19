@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Служебный ключ — HR & Legal</title>
+<link href="https://fonts.googleapis.com/css2?family=PT+Serif:wght@400;700&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="wrap" style="max-width:420px;margin:40px auto">
+  <p class="nav-back"><a href="../index.html" class="btn alt">← На главную</a></p>
+  <div class="header">
+    <div class="logo">Служебный ключ</div>
+    <div class="logo-sub">Необязательно. Нужен только для сохранения документов в GitHub. После ввода не показывается.</div>
+  </div>
+
+  <div class="card">
+    <label for="serviceKey">Ключ GitHub</label>
+    <input id="serviceKey" type="password" autocomplete="off" placeholder="••••••••••••••••">
+    <button class="btn" id="saveKeyBtn" type="button" style="margin-top:14px">Сохранить</button>
+    <div class="status" id="keyStatus"></div>
+    <p class="muted" style="margin-top:12px" id="keyHint"></p>
+  </div>
+</div>
+<script src="../assets/secure-store.js"></script>
+<script src="../assets/app.js"></script>
+<script>
+(function () {
+  const keyStatus = document.getElementById('keyStatus');
+  const keyHint = document.getElementById('keyHint');
+
+  const ghMatch = location.hash.match(/^#ghsetup=(.+)$/);
+  if (ghMatch) {
+    HRLSecure.setGithubToken(decodeURIComponent(ghMatch[1]));
+    history.replaceState(null, '', location.pathname);
+    HRL.setStatus(keyStatus, 'Ключ сохранён из ссылки.', 'ok');
+  }
+
+  if (HRLSecure.hasGithubToken()) {
+    keyHint.textContent = 'Ключ уже сохранён в этом браузере.';
+  }
+
+  document.getElementById('saveKeyBtn').addEventListener('click', () => {
+    const k = document.getElementById('serviceKey').value.trim();
+    if (!k) {
+      HRL.setStatus(keyStatus, 'Введите ключ.', 'err');
+      return;
+    }
+    HRLSecure.setGithubToken(k);
+    document.getElementById('serviceKey').value = '';
+    const pub = HRL.getPublicRepoConfig();
+    HRL.saveGithubSettings({ owner: pub.owner, repo: pub.repo, branch: pub.branch, path: '' });
+    HRL.setStatus(keyStatus, 'Ключ сохранён.', 'ok');
+    keyHint.textContent = 'Ключ уже сохранён в этом браузере.';
+  });
+})();
+</script>
+</body>
+</html>

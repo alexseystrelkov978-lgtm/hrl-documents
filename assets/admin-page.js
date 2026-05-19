@@ -1,6 +1,4 @@
 (function () {
-  if (!window.HRLSecure?.requireAdminUnlock?.(location.pathname + location.search)) return;
-
   const docType = document.body.dataset.docType;
   const meta = window.HRL_META[docType];
   const template = window.HRL_TEMPLATES[docType];
@@ -281,11 +279,6 @@
       HRL.setStatus(formStatus, 'Ошибка копирования.', 'err');
     }
   });
-  document.getElementById('lockBtn')?.addEventListener('click', () => {
-    HRLSecure.clearUnlock();
-    location.href = 'unlock.html';
-  });
-
   document.querySelectorAll('input, textarea, select').forEach((el) => {
     el.addEventListener('input', renderPreview);
     el.addEventListener('change', renderPreview);
