@@ -1,0 +1,228 @@
+(function (global) {
+  const STORAGE_SETTINGS = 'hrl_gh_settings';
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function formatMoney(value, currency) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return '';
+    if (currency === 'USD') {
+      return `${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
+    }
+    return `${n.toLocaleString('ru-RU')} ₸`;
+  }
+
+  function formatDateRu(isoDate) {
+    if (!isoDate) return '';
+    const date = new Date(isoDate);
+    if (Number.isNaN(date.getTime())) return isoDate;
+    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
+  }
+
+  function inlineMd(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  }
+
+  function markdownToHtml(raw) {
+    const lines = String(raw).replace(/\r/g, '').split('\n');
+    const out = [];
+    let inList = false;
+    for (const line of lines) {
+      if (/^\s*---\s*$/.test(line)) {
+        if (inList) { out.push('</ul>'); inList = false; }
+        out.push('<hr>');
+        continue;
+      }
+      const li = line.match(/^\s*[-*]\s+(.+)$/);
+      if (li) {
+        if (!inList) { out.push('<ul>'); inList = true; }
+        out.push(`<li>${inlineMd(li[1])}</li>`);
+        continue;
+      }
+      if (inList) { out.push('</ul>'); inList = false; }
+      const h = line.match(/^(#{1,3})\s+(.+)$/);
+      if (h) out.push(`<h${h[1].length}>${inlineMd(h[2])}</h${h[1].length}>`);
+      else if (line.trim()) out.push(`<p>${inlineMd(line)}</p>`);
+    }
+    if (inList) out.push('</ul>');
+    return out.join('');
+  }
+
+  function applyTemplate(tpl, data) {
+    let out = String(tpl || '');
+    Object.entries(data).forEach(([key, value]) => {
+      out = out.replaceAll(`{{${key}}}`, String(value ?? ''));
+    });
+    return out;
+  }
+
+  function utf8Base64Encode(obj) {
+    const bytes = new TextEncoder().encode(JSON.stringify(obj));
+    let binary = '';
+    bytes.forEach((b) => { binary += String.fromCharCode(b); });
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  }
+
+  function utf8Base64Decode(encoded) {
+    const b64url = decodeURIComponent(encoded).replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64url + '='.repeat((4 - (b64url.length % 4)) % 4);
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }
+
+  function readPayloadFromUrl() {
+    const encoded = new URLSearchParams(location.search).get('d');
+    if (!encoded) return null;
+    try {
+      return utf8Base64Decode(encoded);
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function loadGithubSettings() {
+    return JSON.parse(localStorage.getItem(STORAGE_SETTINGS) || '{}');
+  }
+
+  function saveGithubSettings(settings) {
+    localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(settings));
+  }
+
+  function getGithubSettings(form) {
+    const fromForm = form ? {
+      token: (form.token || '').trim(),
+      owner: (form.owner || '').trim(),
+      repo: (form.repo || '').trim(),
+      branch: (form.branch || 'main').trim() || 'main',
+      path: (form.path || '').trim()
+    } : null;
+    if (fromForm && fromForm.token && fromForm.owner && fromForm.repo) return fromForm;
+    const stored = loadGithubSettings();
+    if (stored.token && stored.owner && stored.repo) {
+      return {
+        token: String(stored.token).trim(),
+        owner: String(stored.owner).trim(),
+        repo: String(stored.repo).trim(),
+        branch: String(stored.branch || 'main').trim() || 'main',
+        path: String(stored.path || '').trim()
+      };
+    }
+    return null;
+  }
+
+  function githubHeaders(token, mode) {
+    const auth = mode === 'token' ? `token ${token}` : `Bearer ${token}`;
+    return { Authorization: auth, Accept: 'application/vnd.github+json' };
+  }
+
+  async function fetchSignedFromGithub(settings) {
+    const path = settings.path.split('/').map(encodeURIComponent).join('/');
+    const url = `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${path}?ref=${encodeURIComponent(settings.branch)}`;
+    let resp = await fetch(url, { headers: githubHeaders(settings.token, 'bearer') });
+    if (resp.status === 401 || resp.status === 403) {
+      resp = await fetch(url, { headers: githubHeaders(settings.token, 'token') });
+    }
+    if (!resp.ok) return null;
+    const file = await resp.json();
+    const decoded = atob(String(file.content || '').replace(/\n/g, ''));
+    const text = new TextDecoder().decode(Uint8Array.from(decoded, (c) => c.charCodeAt(0)));
+    const list = JSON.parse(text || '[]');
+    return Array.isArray(list) ? list : [];
+  }
+
+  async function pushSignedToGithub(settings, record) {
+    const path = settings.path;
+    const branch = settings.branch || 'main';
+    const contentUrl = `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`;
+    let headers = githubHeaders(settings.token, 'bearer');
+    let getResp = await fetch(contentUrl, { headers });
+    if (getResp.status === 401 || getResp.status === 403) {
+      headers = githubHeaders(settings.token, 'token');
+      getResp = await fetch(contentUrl, { headers });
+    }
+    let sha = '';
+    let current = [];
+    if (getResp.ok) {
+      const file = await getResp.json();
+      sha = file.sha || '';
+      const decoded = atob(String(file.content || '').replace(/\n/g, ''));
+      const text = new TextDecoder().decode(Uint8Array.from(decoded, (c) => c.charCodeAt(0)));
+      const parsed = JSON.parse(text || '[]');
+      if (Array.isArray(parsed)) current = parsed;
+    }
+    if (!current.find((it) => it.id === record.id && it.signedAt === record.signedAt)) {
+      current.push(record);
+    }
+    const bodyText = JSON.stringify(current, null, 2);
+    const bytes = new TextEncoder().encode(bodyText);
+    let binary = '';
+    bytes.forEach((b) => { binary += String.fromCharCode(b); });
+    await fetch(`https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${encodeURIComponent(path)}`, {
+      method: 'PUT',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: `sign: ${record.id}`,
+        content: btoa(binary),
+        branch,
+        sha: sha || undefined
+      })
+    });
+  }
+
+  function buildSignLink(docType, payload) {
+    const base = new URL(`../sign/${docType}.html`, location.href);
+    base.searchParams.set('d', utf8Base64Encode(payload));
+    return base.href;
+  }
+
+  function signingExtras(data, reportDate) {
+    const signedDateText = reportDate
+      ? new Date(`${reportDate}T09:00:00`).toLocaleString('ru-RU')
+      : new Date().toLocaleString('ru-RU');
+    return {
+      executorSignature: 'HR & Legal Services [ЭП]',
+      executorSignDate: signedDateText,
+      clientSignature: 'Будет проставлена после подтверждения',
+      clientSignDate: 'Ожидает подписания',
+      electronicSeal: `HRLS-${String(data.docNo || data.id || '').trim()}-${String(reportDate || '').replaceAll('-', '')}`
+    };
+  }
+
+  function setStatus(el, msg, type) {
+    if (!el) return;
+    el.textContent = msg;
+    el.className = `status ${type || ''}`;
+  }
+
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  global.HRL = {
+    escapeHtml,
+    formatMoney,
+    formatDateRu,
+    markdownToHtml,
+    applyTemplate,
+    utf8Base64Encode,
+    utf8Base64Decode,
+    readPayloadFromUrl,
+    loadGithubSettings,
+    saveGithubSettings,
+    getGithubSettings,
+    fetchSignedFromGithub,
+    pushSignedToGithub,
+    buildSignLink,
+    signingExtras,
+    setStatus,
+    sleep,
+    STORAGE_SETTINGS
+  };
+})(window);

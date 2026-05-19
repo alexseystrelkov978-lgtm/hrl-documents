@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Исковое заявление</title>
+<link href="https://fonts.googleapis.com/css2?family=PT+Serif:wght@400;700&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/styles.css">
+<style>body{padding:16px}.sign-page h1{text-align:center;font-family:'PT Sans',sans-serif;color:#1a3a5c;margin-bottom:16px}</style>
+</head>
+<body data-doc-type="claim">
+<canvas id="confetti"></canvas>
+<div class="sign-page">
+  <div style="margin-bottom:12px;font-family:'PT Sans',sans-serif;font-weight:700;color:#1a3a5c">HR & Legal Services</div>
+  <div class="muted" id="docMeta" style="margin-bottom:12px"></div>
+  <h1>Исковое заявление</h1>
+  <div class="sign-body" id="docBody"></div>
+  <div id="scanCard" class="scan-card">
+    <div style="font-family:'PT Sans',sans-serif;font-weight:700;color:#1a3a5c;margin-bottom:8px">Биометрическое подтверждение</div>
+    <p class="muted" style="margin-bottom:12px">Удерживайте 2.5 секунды</p>
+    <p id="scanStage" class="muted">Ожидание.</p>
+    <div class="scanner" id="scanner">
+      <div class="ring"></div>
+      <div class="scan-line"></div>
+      <svg viewBox="0 0 132 132" style="position:absolute;inset:-6px;transform:rotate(-90deg)">
+        <circle cx="66" cy="66" r="60" fill="none" stroke="rgba(26,58,92,.2)" stroke-width="5"/>
+        <circle id="progressBar" cx="66" cy="66" r="60" fill="none" stroke="#00c853" stroke-width="5" stroke-linecap="round" stroke-dasharray="377" stroke-dashoffset="377"/>
+      </svg>
+      <div id="scannerIcon" style="position:relative;z-index:1"></div>
+    </div>
+    <p id="scanText" style="margin-top:12px;font-weight:600">Нажмите и удерживайте</p>
+    <div class="success-banner" id="successBanner"><strong>Подтверждено.</strong><br><span id="successTime"></span></div>
+  </div>
+  <div class="signature-box" id="signatureBox"></div>
+  <div style="text-align:center;margin-top:16px">
+    <button type="button" class="btn" id="downloadBtn">Скачать</button>
+    <button type="button" class="btn alt" id="printBtn">Печать / PDF</button>
+  </div>
+</div>
+<script src="../assets/templates.js"></script>
+<script src="../assets/app.js"></script>
+<script src="../assets/sign-page.js"></script>
+</body>
+</html>

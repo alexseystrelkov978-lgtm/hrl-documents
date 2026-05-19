@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR & Legal Services — Документы</title>
+<link href="https://fonts.googleapis.com/css2?family=PT+Serif:wght@400;700&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="logo">HR & Legal Services</div>
+    <div class="logo-sub">Три отдельных типа документов — у каждого своя форма и своя ссылка для клиента</div>
+  </div>
+
+  <div class="card">
+    <h2>Выберите тип документа</h2>
+    <div class="doc-cards">
+      <a class="doc-card" href="admin/report.html">
+        <h3>1. Отчёт регулятора</h3>
+        <p>Номер документа, ФИО, дата, суммы по счетам. Без подписи — только ознакомление.</p>
+      </a>
+      <a class="doc-card" href="admin/claim.html">
+        <h3>2. Исковое заявление</h3>
+        <p>Суд, истец, ответчик, сумма иска. Клиент подтверждает биометрией.</p>
+      </a>
+      <a class="doc-card" href="admin/contract.html">
+        <h3>3. Договор на услуги</h3>
+        <p>Номер договора, ФИО, дата, сумма ущерба. Электронное подписание.</p>
+      </a>
+    </div>
+    <p class="muted" style="margin-top:16px">Каждый тип сохраняет подписи в отдельный файл на GitHub: <code>signed_report.json</code>, <code>signed_claim.json</code>, <code>signed_contract.json</code>.</p>
+  </div>
+</div>
+</body>
+</html>
