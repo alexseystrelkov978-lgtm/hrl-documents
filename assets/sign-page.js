@@ -27,6 +27,13 @@
     new URLSearchParams(location.search).get('d')
   );
 
+  function setProgress(p) {
+    if (!progressBar) return;
+    const offset = CIRC - CIRC * Math.min(1, Math.max(0, p));
+    progressBar.setAttribute('stroke-dashoffset', String(offset));
+    progressBar.style.strokeDashoffset = String(offset);
+  }
+
   function showInvalidLink() {
     if (bodyEl) {
       bodyEl.innerHTML = '<p style="text-align:center;color:#666;padding:24px">Ссылка недействительна или устарела.<br>Запросите новую ссылку на подпись у администратора.</p>';
@@ -77,33 +84,36 @@
     if (found) applySigned(found.signedAt, true);
   }
 
-  function onPointerDown(e) {
+  function startHold(e) {
     if (successBanner?.classList.contains('active')) return;
-    e.preventDefault();
+    if (!scanner || !progressBar) return;
+    if (e?.cancelable) e.preventDefault();
     holding = true;
     holdStart = performance.now();
     scanner.classList.add('scanning');
-    scanText.textContent = 'Сканирование...';
-    scanStage.textContent = 'Проверка...';
+    if (scanText) scanText.textContent = 'Сканирование...';
+    if (scanStage) scanStage.textContent = 'Проверка...';
+    cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(tick);
   }
 
-  function onPointerUp() {
+  function endHold() {
     if (!holding) return;
     holding = false;
     cancelAnimationFrame(rafId);
-    scanner.classList.remove('scanning');
-    progressBar.style.strokeDashoffset = String(CIRC);
-    scanText.textContent = 'Нажмите и удерживайте';
-    scanStage.textContent = 'Ожидание.';
+    if (scanner) scanner.classList.remove('scanning');
+    setProgress(0);
+    if (scanText) scanText.textContent = 'Нажмите и удерживайте';
+    if (scanStage) scanStage.textContent = 'Ожидание.';
   }
 
   function tick(now) {
     if (!holding) return;
     const p = Math.min(1, (now - holdStart) / DURATION_MS);
-    progressBar.style.strokeDashoffset = String(CIRC - CIRC * p);
+    setProgress(p);
     if (p >= 1) {
       holding = false;
+      cancelAnimationFrame(rafId);
       completeSign();
       return;
     }
@@ -123,6 +133,7 @@
     list.push(record);
     localStorage.setItem(meta.storageSigned, JSON.stringify(list));
     localStorage.setItem('hrl_last_signed_ping', String(Date.now()));
+    setProgress(1);
     applySigned(signedAt, false);
     if (navigator.vibrate) navigator.vibrate([40, 80, 40]);
     launchConfetti();
@@ -139,7 +150,6 @@
       y: -10 - Math.random() * 200,
       s: 4 + Math.random() * 8,
       v: 2 + Math.random() * 4,
-      r: Math.random() * Math.PI,
       c: ['#00c853', '#1a3a5c', '#f0c419'][Math.floor(Math.random() * 3)]
     }));
     const start = performance.now();
@@ -163,13 +173,29 @@
       if (scanCard) scanCard.style.display = 'none';
       return;
     }
-    if (!scanner || !progressBar) return;
+    if (!scanner || !progressBar) {
+      console.warn('HRL: scanner UI not found');
+      return;
+    }
+    setProgress(0);
     if (scannerIcon) {
       scannerIcon.innerHTML = '<svg viewBox="0 0 64 64" width="48" height="48" stroke="#1a3a5c" fill="none"><path d="M32 8c-8 0-14 6-14 14v8"/><path d="M32 20c-2.4 0-4 1.8-4 4.2V40"/><path d="M18 42c0 7.6 6 14 14 14s14-6.4 14-14"/></svg>';
     }
-    scanner.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerUp);
+
+    scanner.addEventListener('pointerdown', startHold);
+    scanner.addEventListener('mousedown', (e) => {
+      if (e.button === 0) startHold(e);
+    });
+    scanner.addEventListener('touchstart', (e) => {
+      startHold(e);
+    }, { passive: false });
+
+    window.addEventListener('pointerup', endHold);
+    window.addEventListener('pointercancel', endHold);
+    window.addEventListener('mouseup', endHold);
+    window.addEventListener('touchend', endHold);
+    window.addEventListener('touchcancel', endHold);
+    window.addEventListener('blur', endHold);
   }
 
   document.getElementById('downloadBtn')?.addEventListener('click', () => {
