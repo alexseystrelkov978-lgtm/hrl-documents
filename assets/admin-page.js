@@ -9,6 +9,8 @@
   const previewEl = document.getElementById('preview');
   const linkBox = document.getElementById('linkBox');
   const linkUrl = document.getElementById('linkUrl');
+  const shortBox = document.getElementById('shortBox');
+  const shortUrl = document.getElementById('shortUrl');
 
   const gh = {
     token: document.getElementById('ghToken'),
@@ -134,7 +136,7 @@
     HRL.setStatus(document.getElementById('settingsStatus'), 'Настройки GitHub сохранены.', 'ok');
   }
 
-  function registerCreated(data, link) {
+  function registerCreated(data, link, shortLink) {
     const list = JSON.parse(localStorage.getItem(meta.storageCreated) || '[]');
     const idx = list.findIndex((x) => x.id === data.id);
     const row = {
@@ -143,6 +145,7 @@
       fio: data.fio,
       createdAt: new Date().toISOString(),
       link,
+      shortLink: shortLink || '',
       status: 'not_signed',
       signedAt: ''
     };
@@ -173,7 +176,9 @@
         <td>${item.createdAt ? new Date(item.createdAt).toLocaleString('ru-RU') : ''}</td>
         <td>${item.signedAt ? new Date(item.signedAt).toLocaleString('ru-RU') : '—'}</td>
         <td>${item.status === 'signed' ? 'Подписан' : 'Не подписан'}</td>
-        <td><button type="button" class="btn alt btn-row" data-copy="${HRL.escapeHtml(item.link || '')}">Ссылка</button></td>
+        <td>
+          <button type="button" class="btn alt btn-row" data-copy="${HRL.escapeHtml(item.shortLink || item.link || '')}">${item.shortLink ? 'Короткая' : 'Ссылка'}</button>
+        </td>
       </tr>
     `).join('');
   }
@@ -235,8 +240,20 @@
     const link = HRL.buildSignLink(docType, payload);
     linkUrl.textContent = link;
     linkBox.classList.add('active');
-    registerCreated(data, link);
-    HRL.setStatus(formStatus, 'Ссылка готова. Отправьте клиенту.', 'ok');
+    if (shortBox) shortBox.classList.remove('active');
+    if (shortUrl) shortUrl.textContent = '';
+
+    HRL.setStatus(formStatus, 'Ссылка создана. Сокращаю...', 'warn');
+    const short = await HRL.shortenUrl(link);
+    if (short && shortUrl && shortBox) {
+      shortUrl.textContent = short;
+      shortBox.classList.add('active');
+      registerCreated(data, link, short);
+      HRL.setStatus(formStatus, 'Короткая ссылка готова — отправьте клиенту.', 'ok');
+    } else {
+      registerCreated(data, link, '');
+      HRL.setStatus(formStatus, 'Ссылка готова (сократить не удалось — используйте полную).', 'warn');
+    }
     renderPreview();
   }
 
@@ -249,7 +266,20 @@
     if (!link) return;
     try {
       await navigator.clipboard.writeText(link);
-      HRL.setStatus(formStatus, 'Скопировано.', 'ok');
+      HRL.setStatus(formStatus, 'Полная ссылка скопирована.', 'ok');
+    } catch (e) {
+      HRL.setStatus(formStatus, 'Не удалось скопировать.', 'err');
+    }
+  });
+  document.getElementById('copyShortBtn')?.addEventListener('click', async () => {
+    const short = shortUrl?.textContent.trim() || '';
+    if (!short) {
+      HRL.setStatus(formStatus, 'Сначала создайте ссылку.', 'err');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(short);
+      HRL.setStatus(formStatus, 'Короткая ссылка скопирована.', 'ok');
     } catch (e) {
       HRL.setStatus(formStatus, 'Не удалось скопировать.', 'err');
     }
