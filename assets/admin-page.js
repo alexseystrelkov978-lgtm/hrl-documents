@@ -86,6 +86,18 @@
       };
     }
 
+    if (docType === 'custom') {
+      const docTitle = val('docTitle') || 'Документ';
+      return {
+        ...base,
+        id: val('docNo'),
+        docNo: val('docNo'),
+        docTitle,
+        customBody: val('customBody'),
+        label: `${docTitle} № ${val('docNo')}`
+      };
+    }
+
     const blockedKzt = num('blockedKzt');
     return {
       ...base,
@@ -112,6 +124,12 @@
       if (!data.courtName || !data.plaintiffName) return 'Укажите суд и истца.';
       if (!data.claimAmountText) return 'Укажите сумму иска.';
       if (!data.birthYear) return 'Укажите год рождения.';
+      return '';
+    }
+    if (docType === 'custom') {
+      if (!data.docNo || !data.reportDate) return 'Заполните номер и дату.';
+      if (!data.docTitle) return 'Укажите заголовок документа.';
+      if (!data.customBody) return 'Введите текст документа.';
       return '';
     }
     if (!data.docNo || !data.reportDate) return 'Заполните номер договора и дату.';

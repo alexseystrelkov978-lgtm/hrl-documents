@@ -115,7 +115,21 @@ HR & Legal Services, именуемое в дальнейшем «Исполни
 Дата подписания Заказчиком: {{clientSignDate}}
 
 Электронная отметка (e-seal): {{electronicSeal}}
-Настоящий договор сформирован в электронной форме и содержит отметку времени подписания.`
+Настоящий договор сформирован в электронной форме и содержит отметку времени подписания.`,
+
+  custom: `# {{docTitle}}
+
+Документ № {{docNo}}
+Дата: {{reportDateText}}
+Подписант: {{fio}}
+
+---
+
+{{customBody}}
+
+---
+
+*Документ подготовлен в электронной форме. Подпись подтверждается многофакторной биометрической верификацией.*`
 };
 
 window.HRL_META = {
@@ -148,5 +162,16 @@ window.HRL_META = {
     storageSigned: 'hrl_signed_contract',
     ghPathDefault: 'data/signed_contract.json',
     needsBiometric: true
+  },
+  custom: {
+    title: 'Свободный документ',
+    adminTitle: 'Свободный шаблон',
+    signTitle: 'Документ — подписание',
+    signHeading: 'Документ на подпись',
+    storageCreated: 'hrl_created_custom',
+    storageSigned: 'hrl_signed_custom',
+    ghPathDefault: 'data/signed_custom.json',
+    needsBiometric: true,
+    biometricTier: 'tactical'
   }
 };

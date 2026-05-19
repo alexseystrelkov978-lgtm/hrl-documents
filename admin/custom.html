@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Админ — Свободный шаблон</title>
+<link href="https://fonts.googleapis.com/css2?family=PT+Serif:wght@400;700&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-doc-type="custom">
+<div class="wrap">
+  <p class="nav-back">
+    <a href="../index.html" class="btn alt">← Все документы</a>
+  </p>
+  <div class="header">
+    <div class="logo">Свободный шаблон</div>
+    <div class="logo-sub">Заголовок, ФИО, дата и произвольный текст — клиент подпишет тактической биометрией.</div>
+  </div>
+
+  <div class="card">
+    <h3>Данные документа</h3>
+    <div class="grid">
+      <div class="span-2"><label for="docTitle">Заголовок документа *</label><input id="docTitle" type="text" placeholder="Например: Соглашение о конфиденциальности"></div>
+      <div><label for="docNo">Номер документа *</label><input id="docNo" type="text"></div>
+      <div><label for="reportDate">Дата *</label><input id="reportDate" type="date"></div>
+      <div class="span-2"><label for="fio">ФИО подписанта *</label><input id="fio" type="text"></div>
+      <div class="span-2">
+        <label for="customBody">Текст документа *</label>
+        <textarea id="customBody" rows="14" placeholder="Вставьте любой текст. Поддерживается разметка: **жирный**, списки (- пункт), заголовки (# ## ###), разделитель ---"></textarea>
+      </div>
+    </div>
+    <button class="btn alt" id="previewBtn" type="button">Предпросмотр</button>
+    <div class="preview" id="preview" style="margin-top:14px"></div>
+  </div>
+
+  <div class="card">
+    <h3>Ссылка на подпись для клиента</h3>
+    <p class="muted">Клиент увидит документ и пройдёт многофакторную биометрию (PKI / NATO STANAG). Отправляйте <strong>только</strong> короткую ссылку.</p>
+    <button class="btn" id="generateBtn" type="button">Сформировать ссылку на подпись</button>
+    <div class="short-box client-link-box" id="shortBox">
+      <div id="shortUrl"></div>
+      <button class="btn" id="copyShortBtn" type="button">Скопировать ссылку на подпись</button>
+    </div>
+    <div class="status" id="formStatus"></div>
+  </div>
+
+  <div class="card">
+    <h3>Реестр</h3>
+    <p class="muted">Всего: <strong id="totalCount">0</strong></p>
+    <button class="btn alt" id="syncBtn" type="button">Синхронизировать</button>
+    <div class="status" id="listStatus"></div>
+    <p id="emptyMsg" class="muted">Пока нет записей.</p>
+    <table id="registryTable" style="display:none">
+      <thead><tr><th>#</th><th>Документ</th><th>ФИО</th><th>Создан</th><th>Подписан</th><th>Статус</th><th></th></tr></thead>
+      <tbody id="registryBody"></tbody>
+    </table>
+  </div>
+</div>
+<script src="../assets/secure-store.js?v=custom-tactical-1"></script>
+<script src="../assets/templates.js?v=custom-tactical-1"></script>
+<script src="../assets/app.js?v=custom-tactical-1"></script>
+<script src="../assets/admin-page.js?v=custom-tactical-1"></script>
+</body>
+</html>

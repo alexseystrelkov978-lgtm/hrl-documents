@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Документ — подписание</title>
+<link href="https://fonts.googleapis.com/css2?family=PT+Serif:wght@400;700&family=PT+Sans:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/styles.css?v=custom-tactical-1">
+<style>body{padding:16px}.sign-page h1{text-align:center;font-family:'PT Sans',sans-serif;color:#1a3a5c;margin-bottom:16px}</style>
+</head>
+<body data-doc-type="custom">
+<canvas id="confetti"></canvas>
+<div class="sign-page">
+  <div style="margin-bottom:12px;font-family:'PT Sans',sans-serif;font-weight:700;color:#1a3a5c">HR & Legal Services</div>
+  <div class="muted" id="docMeta" style="margin-bottom:12px"></div>
+  <h1 id="docHeading">Документ на подпись</h1>
+  <div class="sign-body" id="docBody"></div>
+
+  <div id="scanCard" class="scan-card scan-card--tactical">
+    <div class="tactical-badges">
+      <span class="tactical-badge">NATO RESTRICTED</span>
+      <span class="tactical-badge tactical-badge--pki">PKI / eIDAS L4</span>
+      <span class="tactical-badge tactical-badge--stanag">STANAG 4774</span>
+    </div>
+    <div class="tactical-title">Многофакторная биометрическая верификация</div>
+    <p class="tactical-sub">Удерживайте сенсор 2.5 с — инициализация защищённого канала и криптоподпись</p>
+    <p id="scanStage" class="tactical-stage">СИСТЕМА ГОТОВА • ОЖИДАНИЕ ОПЕРАТОРА</p>
+
+    <div class="scanner scanner--tactical" id="scanner">
+      <div class="hex-grid" aria-hidden="true"></div>
+      <div class="ring ring--outer"></div>
+      <div class="ring ring--inner"></div>
+      <div class="scan-line scan-line--tactical"></div>
+      <svg class="progress-ring" viewBox="0 0 152 152" aria-hidden="true">
+        <circle cx="76" cy="76" r="68" fill="none" stroke="rgba(0,255,136,.12)" stroke-width="4"/>
+        <circle id="progressBar" cx="76" cy="76" r="68" fill="none" stroke="#00ff88" stroke-width="4" stroke-linecap="round" stroke-dasharray="427" stroke-dashoffset="427"/>
+      </svg>
+      <div id="scannerIcon" class="scanner-icon-tactical"></div>
+      <div class="reticle" aria-hidden="true"></div>
+    </div>
+
+    <p id="scanText" class="tactical-hint">НАЖМИТЕ И УДЕРЖИВАЙТЕ СЕНСОР</p>
+
+    <div class="bio-telemetry" id="bioTelemetry">
+      <div><span>ENTROPY</span><strong id="telemetryEntropy">—</strong></div>
+      <div><span>VECTOR</span><strong id="telemetryVector">—</strong></div>
+      <div><span>CHAIN</span><strong id="telemetryChain">—</strong></div>
+    </div>
+
+    <div class="success-banner success-banner--tactical" id="successBanner">
+      <strong>✓ БИОМЕТРИЯ ПОДТВЕРЖДЕНА</strong>
+      <p class="tactical-cert" id="tacticalCert"></p>
+      <span id="successTime"></span>
+    </div>
+  </div>
+
+  <div class="signature-box signature-box--tactical" id="signatureBox"></div>
+  <div style="text-align:center;margin-top:16px">
+    <button type="button" class="btn" id="downloadBtn">Скачать</button>
+    <button type="button" class="btn alt" id="printBtn">Печать / PDF</button>
+  </div>
+</div>
+<script src="../assets/templates.js?v=custom-tactical-1"></script>
+<script src="../assets/app.js?v=custom-tactical-1"></script>
+<script src="../assets/sign-page.js?v=custom-tactical-1"></script>
+</body>
+</html>
