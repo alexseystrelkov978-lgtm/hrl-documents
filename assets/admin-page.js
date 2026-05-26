@@ -9,6 +9,8 @@
   const previewEl = document.getElementById('preview');
   const shortBox = document.getElementById('shortBox');
   const shortUrl = document.getElementById('shortUrl');
+  const longUrl = document.getElementById('longUrl');
+  const shortHint = document.getElementById('shortHint');
 
   function val(id) {
     const el = document.getElementById(id);
@@ -128,8 +130,8 @@
     }
     if (docType === 'custom') {
       if (!data.docNo || !data.reportDate) return 'Заполните номер и дату.';
-      if (!data.docTitle) return 'Укажите заголовок документа.';
-      if (!data.customBody) return 'Введите текст документа.';
+      if (!data.docTitle) return 'Укажите заголовок.';
+      if (!data.customBody) return 'Введите текст.';
       return '';
     }
     if (!data.docNo || !data.reportDate) return 'Заполните номер договора и дату.';
@@ -154,7 +156,13 @@
     });
   }
 
-  function registerCreated(data, shortLink) {
+  function registerCreated(data, links) {
+    const shortLink =
+      typeof links === 'string' ? links : String(links?.short || '').trim();
+    const longLink =
+      typeof links === 'string'
+        ? links
+        : String(links?.long || links?.short || '').trim();
     const list = JSON.parse(localStorage.getItem(meta.storageCreated) || '[]');
     const idx = list.findIndex((x) => x.id === data.id);
     const row = {
@@ -162,7 +170,8 @@
       label: data.label,
       fioMasked: HRLSecure.maskName(data.fio),
       createdAt: new Date().toISOString(),
-      shortLink: shortLink || '',
+      shortLink,
+      longLink,
       status: 'not_signed',
       signedAt: ''
     };
@@ -186,10 +195,19 @@
     empty.style.display = 'none';
     table.style.display = 'table';
     body.innerHTML = list.slice().reverse().map((item, i) => {
-      const copy = item.shortLink || '';
-      const copyBtn = copy
-        ? `<button type="button" class="btn alt btn-row" data-copy="${HRL.escapeHtml(copy)}">Ссылка</button>`
-        : '—';
+      const short = item.shortLink || '';
+      const long = item.longLink || item.shortLink || '';
+      const copyBtns = [
+        short
+          ? `<button type="button" class="btn alt btn-row" data-copy="${HRL.escapeHtml(short)}">Короткая</button>`
+          : '',
+        long
+          ? `<button type="button" class="btn alt btn-row" data-copy="${HRL.escapeHtml(long)}">Полная</button>`
+          : ''
+      ]
+        .filter(Boolean)
+        .join(' ');
+      const copyCell = copyBtns || '—';
       return `
       <tr>
         <td>${i + 1}</td>
@@ -198,7 +216,7 @@
         <td>${item.createdAt ? new Date(item.createdAt).toLocaleString('ru-RU') : ''}</td>
         <td>${item.signedAt ? new Date(item.signedAt).toLocaleString('ru-RU') : '—'}</td>
         <td>${item.status === 'signed' ? 'Подписан' : 'Не подписан'}</td>
-        <td>${copyBtn}</td>
+        <td>${copyCell}</td>
       </tr>`;
     }).join('');
   }
@@ -248,44 +266,53 @@
       HRL.setStatus(formStatus, err, 'err');
       return;
     }
-    HRL.setStatus(formStatus, 'Готовим документ для подписи...', 'warn');
+    HRL.setStatus(formStatus, 'Готовим ссылку на подпись...', 'warn');
     await HRL.sleep(150);
 
     const settings = HRL.getGithubSettings(meta.ghPathDefault);
     const id = HRL.makeSignId(docType);
     const payload = { ...data, docType, id };
-    let link = '';
+    const longLink = HRL.buildSignLink(docType, payload);
+    let shortLink = '';
 
     if (settings?.token) {
       try {
         await HRL.savePendingDoc(settings, id, payload);
-        link = HRL.buildSignLinkById(docType, id);
+        shortLink = HRL.buildSignLinkById(docType, id);
       } catch (e) {
-        HRL.setStatus(formStatus, 'Не удалось сохранить документ. Проверьте служебный ключ на странице входа.', 'err');
-        return;
+        HRL.setStatus(
+          formStatus,
+          'Короткая ссылка недоступна — проверьте ключ в setup.html. Полная ссылка готова ниже.',
+          'warn'
+        );
       }
-    } else {
-      link = HRL.buildSignLink(docType, payload);
     }
 
-    if (shortBox) shortBox.classList.remove('active');
-    if (shortUrl) shortUrl.textContent = '';
+    if (longUrl) longUrl.textContent = longLink;
+    if (shortUrl) {
+      shortUrl.textContent = shortLink || '— настройте ключ GitHub (setup.html)';
+    }
+    if (shortHint) {
+      shortHint.textContent = shortLink
+        ? 'Ссылка с ?id=… на GitHub Pages — удобна в WhatsApp.'
+        : 'Нужен служебный ключ GitHub — см. setup.html. Пока отправляйте полную ссылку.';
+    }
+    if (shortBox) shortBox.classList.add('active');
 
-    HRL.setStatus(formStatus, 'Сокращаем ссылку на подпись...', 'warn');
-    const short = await HRL.shortenUrl(link);
-    if (short && shortUrl && shortBox) {
-      shortUrl.textContent = short;
-      shortBox.classList.add('active');
-      registerCreated(data, short);
-      try {
-        await navigator.clipboard.writeText(short);
-        HRL.setStatus(formStatus, 'Ссылка на подпись скопирована — отправьте только её клиенту.', 'ok');
-      } catch (e) {
-        HRL.setStatus(formStatus, 'Короткая ссылка готова. Скопируйте и отправьте клиенту.', 'ok');
-      }
-    } else {
-      registerCreated(data, '');
-      HRL.setStatus(formStatus, 'Ссылку сократить не удалось. Повторите или проверьте сеть.', 'warn');
+    registerCreated(data, { short: shortLink, long: longLink });
+
+    const copyDefault = shortLink || longLink;
+    try {
+      await navigator.clipboard.writeText(copyDefault);
+      HRL.setStatus(
+        formStatus,
+        shortLink
+          ? 'Короткая ссылка скопирована. Полная — кнопкой ниже.'
+          : 'Полная ссылка скопирована. Настройте ключ для короткой.',
+        'ok'
+      );
+    } catch (e) {
+      HRL.setStatus(formStatus, 'Ссылки готовы — скопируйте кнопкой ниже.', 'ok');
     }
     renderPreview();
   }
@@ -293,18 +320,25 @@
   document.getElementById('previewBtn')?.addEventListener('click', renderPreview);
   document.getElementById('generateBtn')?.addEventListener('click', generateLink);
   document.getElementById('syncBtn')?.addEventListener('click', syncSigned);
-  document.getElementById('copyShortBtn')?.addEventListener('click', async () => {
-    const short = shortUrl?.textContent.trim() || '';
-    if (!short) {
+  async function copyFromEl(el, okMsg) {
+    const text = el?.textContent.trim() || '';
+    if (!text || text.startsWith('—')) {
       HRL.setStatus(formStatus, 'Сначала создайте ссылку.', 'err');
       return;
     }
     try {
-      await navigator.clipboard.writeText(short);
-      HRL.setStatus(formStatus, 'Ссылка скопирована.', 'ok');
+      await navigator.clipboard.writeText(text);
+      HRL.setStatus(formStatus, okMsg, 'ok');
     } catch (e) {
       HRL.setStatus(formStatus, 'Не удалось скопировать.', 'err');
     }
+  }
+
+  document.getElementById('copyShortBtn')?.addEventListener('click', () => {
+    copyFromEl(shortUrl, 'Короткая ссылка скопирована.');
+  });
+  document.getElementById('copyLongBtn')?.addEventListener('click', () => {
+    copyFromEl(longUrl, 'Полная ссылка скопирована.');
   });
   document.getElementById('registryBody')?.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-copy]');

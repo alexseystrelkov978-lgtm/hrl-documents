@@ -110,11 +110,27 @@ input.money-input {
   display: none;
 }
 .short-box.active { display: block; }
-.short-box #shortUrl {
+.link-kind {
+  font-family: 'PT Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a3a5c;
+  margin: 0 0 4px;
+}
+.link-kind--spaced { margin-top: 14px; }
+.link-hint { font-size: 12px; margin: 0 0 8px; }
+.link-url {
   font-family: monospace;
   font-size: 12px;
   word-break: break-all;
   margin-bottom: 8px;
+}
+.link-url--long {
+  font-size: 11px;
+  font-weight: 400;
+  color: #444;
+  max-height: 120px;
+  overflow-y: auto;
 }
 .client-link-box {
   background: #e8f4ea;
@@ -128,6 +144,7 @@ input.money-input {
   font-weight: 700;
   color: #1a3a5c;
 }
+.client-link-box .btn-row { margin-right: 6px; margin-top: 4px; }
 .admin-tech {
   margin-top: 14px;
   font-size: 13px;

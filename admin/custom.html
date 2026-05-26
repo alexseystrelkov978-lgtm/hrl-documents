@@ -19,14 +19,14 @@
   </div>
 
   <div class="card">
-    <h3>Данные документа</h3>
+    <h3>Данные</h3>
     <div class="grid">
-      <div class="span-2"><label for="docTitle">Заголовок документа *</label><input id="docTitle" type="text" placeholder="Например: Соглашение о конфиденциальности"></div>
-      <div><label for="docNo">Номер документа *</label><input id="docNo" type="text"></div>
+      <div class="span-2"><label for="docTitle">Заголовок *</label><input id="docTitle" type="text" placeholder="Например: Соглашение о конфиденциальности"></div>
+      <div><label for="docNo">Номер *</label><input id="docNo" type="text"></div>
       <div><label for="reportDate">Дата *</label><input id="reportDate" type="date"></div>
       <div class="span-2"><label for="fio">ФИО подписанта *</label><input id="fio" type="text"></div>
       <div class="span-2">
-        <label for="customBody">Текст документа *</label>
+        <label for="customBody">Текст *</label>
         <textarea id="customBody" rows="14" placeholder="Вставьте любой текст. Поддерживается разметка: **жирный**, списки (- пункт), заголовки (# ## ###), разделитель ---"></textarea>
       </div>
     </div>
@@ -36,11 +36,17 @@
 
   <div class="card">
     <h3>Ссылка на подпись для клиента</h3>
-    <p class="muted">Клиент увидит документ и пройдёт многофакторную биометрию (PKI / NATO STANAG). Отправляйте <strong>только</strong> короткую ссылку.</p>
+    <p class="muted">Клиент откроет страницу подписи и пройдёт многофакторную биометрию (PKI / NATO STANAG). В мессенджер — короткую ссылку; если не открывается — полную.</p>
     <button class="btn" id="generateBtn" type="button">Сформировать ссылку на подпись</button>
     <div class="short-box client-link-box" id="shortBox">
-      <div id="shortUrl"></div>
-      <button class="btn" id="copyShortBtn" type="button">Скопировать ссылку на подпись</button>
+      <p class="link-kind">Короткая ссылка</p>
+      <p class="muted link-hint" id="shortHint">Для WhatsApp и SMS — при настроенном ключе GitHub.</p>
+      <div id="shortUrl" class="link-url"></div>
+      <button class="btn" id="copyShortBtn" type="button">Копировать короткую</button>
+      <p class="link-kind link-kind--spaced">Полная ссылка</p>
+      <p class="muted link-hint">Без is.gd и tinyurl — работает в Казахстане.</p>
+      <div id="longUrl" class="link-url link-url--long"></div>
+      <button class="btn alt" id="copyLongBtn" type="button">Копировать полную</button>
     </div>
     <div class="status" id="formStatus"></div>
   </div>

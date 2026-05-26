@@ -340,37 +340,6 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  async function shortenUrl(longUrl) {
-    const url = String(longUrl || '').trim();
-    if (!url) return '';
-
-    try {
-      const res1 = await fetch(
-        'https://is.gd/create.php?format=simple&url=' + encodeURIComponent(url)
-      );
-      if (res1.ok) {
-        const text = (await res1.text()).trim();
-        if (text.startsWith('http')) return text;
-      }
-    } catch (err) {
-      /* fallback */
-    }
-
-    try {
-      const res2 = await fetch(
-        'https://tinyurl.com/api-create.php?url=' + encodeURIComponent(url)
-      );
-      if (res2.ok) {
-        const text = (await res2.text()).trim();
-        if (text.startsWith('http')) return text;
-      }
-    } catch (err) {
-      /* no shortener */
-    }
-
-    return '';
-  }
-
   global.HRL = {
     escapeHtml,
     formatMoney,
@@ -399,7 +368,6 @@
     signingExtras,
     setStatus,
     sleep,
-    shortenUrl,
     STORAGE_SETTINGS
   };
 })(window);

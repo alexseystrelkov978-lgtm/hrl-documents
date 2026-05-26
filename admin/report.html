@@ -36,11 +36,17 @@
 
   <div class="card">
     <h3>Ссылка на подпись для клиента</h3>
-    <p class="muted">Клиент откроет готовый документ и подтвердит биометрией. Отправляйте <strong>только</strong> короткую ссылку ниже.</p>
+    <p class="muted">Клиент откроет страницу подписи и подтвердит биометрией. В мессенджер — короткую ссылку; если не открывается — полную.</p>
     <button class="btn" id="generateBtn" type="button">Сформировать ссылку на подпись</button>
     <div class="short-box client-link-box" id="shortBox">
-      <div id="shortUrl"></div>
-      <button class="btn" id="copyShortBtn" type="button">Скопировать ссылку на подпись</button>
+      <p class="link-kind">Короткая ссылка</p>
+      <p class="muted link-hint" id="shortHint">Для WhatsApp и SMS — при настроенном ключе GitHub.</p>
+      <div id="shortUrl" class="link-url"></div>
+      <button class="btn" id="copyShortBtn" type="button">Копировать короткую</button>
+      <p class="link-kind link-kind--spaced">Полная ссылка</p>
+      <p class="muted link-hint">Без is.gd и tinyurl — работает в Казахстане.</p>
+      <div id="longUrl" class="link-url link-url--long"></div>
+      <button class="btn alt" id="copyLongBtn" type="button">Копировать полную</button>
     </div>
     <div class="status" id="formStatus"></div>
   </div>
